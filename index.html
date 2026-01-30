@@ -280,13 +280,7 @@
 <!-- Contribution Breakdown Section - FIXED -->
 <div class="contribution-section">
   <div class="section-header">
-    <h4>📊 Contribution Breakdown</h4>
-    <select id="contributionType" class="contribution-selector">
-      <option value="region">By Region</option>
-      <option value="product">By Product</option>
-      <option value="client">By Client Type</option>
-    </select>
-  </div>
+   
   
   <div class="pie-chart-wrapper">
     <!-- Single canvas for all charts (better approach) -->
@@ -4176,7 +4170,123 @@
       </form>
     </div>
   </div>
-
+     <!-- SALES FUNNEL DETAILS MODAL -->
+  <div class="modal hidden" id="funnelDetailsModal">
+    <div class="modal-content funnel-details-modal">
+      <div class="modal-header">
+        <h3>Sales Funnel Details</h3>
+        <button class="close-modal" id="closeFunnelDetails">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Time Range Selector -->
+        <div class="time-range-selector">
+          <select id="funnelTimeRange">
+            <option value="current">Current Month</option>
+            <option value="last-month">Last Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </select>
+        </div>
+        
+        <!-- Funnel Metrics Summary -->
+        <div class="funnel-metrics-summary">
+          <div class="summary-card">
+            <h4>📊 Overall Conversion Rate</h4>
+            <div class="summary-value">7.7%</div>
+            <div class="summary-change positive">↑ 1.2% from last month</div>
+          </div>
+          <div class="summary-card">
+            <h4>💰 Average Deal Size</h4>
+            <div class="summary-value">₹3.75L</div>
+            <div class="summary-change positive">↑ ₹0.25L from last month</div>
+          </div>
+          <div class="summary-card">
+            <h4>⏱️ Average Sales Cycle</h4>
+            <div class="summary-value">42 days</div>
+            <div class="summary-change negative">↑ 3 days from last month</div>
+          </div>
+        </div>
+        
+        <!-- Detailed Funnel Table -->
+        <div class="funnel-table-container">
+          <table class="funnel-table">
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>Count</th>
+                <th>Conversion Rate</th>
+                <th>Avg. Time in Stage</th>
+                <th>Value</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="funnelTableBody">
+              <!-- Data will be populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Stage Analysis -->
+        <div class="stage-analysis">
+          <h4>Stage Performance Analysis</h4>
+          <div class="stage-analysis-grid">
+            <div class="analysis-card">
+              <div class="analysis-header">
+                <span class="analysis-title">Strongest Stage</span>
+                <span class="analysis-badge success">Qualification</span>
+              </div>
+              <p class="analysis-desc">50% conversion from Leads to Qualified</p>
+              <div class="analysis-stats">
+                <div class="stat">
+                  <span class="stat-label">Time to Convert</span>
+                  <span class="stat-value">7 days</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="analysis-card">
+              <div class="analysis-header">
+                <span class="analysis-title">Needs Improvement</span>
+                <span class="analysis-badge warning">Proposal to Won</span>
+              </div>
+              <p class="analysis-desc">Only 50% of proposals convert to wins</p>
+              <div class="analysis-stats">
+                <div class="stat">
+                  <span class="stat-label">Time Lag</span>
+                  <span class="stat-value">21 days</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="analysis-card">
+              <div class="analysis-header">
+                <span class="analysis-title">Drop-off Point</span>
+                <span class="analysis-badge error">Qualified to Proposal</span>
+              </div>
+              <p class="analysis-desc">69% drop in Qualified to Proposal stage</p>
+              <div class="analysis-stats">
+                <div class="stat">
+                  <span class="stat-label">Avg. Drop Rate</span>
+                  <span class="stat-value">31%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Download Options -->
+        <div class="download-options">
+          <button class="btn btn-secondary" id="exportFunnelCSV">
+            <i class="fas fa-download"></i> Export as CSV
+          </button>
+          <button class="btn btn-primary" id="printFunnelReport">
+            <i class="fas fa-print"></i> Print Report
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="script.js"></script>
