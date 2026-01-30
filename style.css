@@ -6879,3 +6879,559 @@ canvas {
   min-height: 350px;
   position: relative;
 }
+/* Pie Chart Container Fixes */
+.pie-chart-container {
+  position: relative;
+  min-height: 300px;
+}
+
+.pie-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.pie-chart.active {
+  display: block !important;
+}
+
+.pie-chart:not(.active) {
+  display: none !important;
+}
+
+/* Ensure canvas is visible */
+.pie-chart canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Carousel Navigation */
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.carousel-nav-btn {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+  transition: all 0.2s;
+}
+
+.carousel-nav-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.carousel-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.carousel-dots .dot.active {
+  background: #3b82f6;
+  transform: scale(1.2);
+}
+
+/* Contribution Section Styling */
+.contribution-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.contribution-selector {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.contribution-selector:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+/* ========== CONTRIBUTION BREAKDOWN GRAPH FIX ========== */
+
+/* Fix the pie chart container */
+.pie-chart-wrapper {
+  position: relative;
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Fix the pie chart container that holds all 3 charts */
+.pie-chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  overflow: hidden;
+}
+
+/* Fix each pie chart */
+.pie-chart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease;
+}
+
+/* Show active pie chart */
+.pie-chart.active {
+  opacity: 1;
+  visibility: visible;
+  position: relative;
+}
+
+/* Ensure canvas is properly sized */
+.pie-chart canvas {
+  width: 200px !important;
+  height: 200px !important;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Fix legend container */
+.pie-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 280px;
+  padding: 0 10px;
+}
+
+/* Legend items */
+.pie-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pie-legend .legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Carousel navigation */
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 25px;
+  width: 100%;
+}
+
+.carousel-nav-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.carousel-nav-btn:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.carousel-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.carousel-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.carousel-dots .dot.active {
+  background: #3b82f6;
+  transform: scale(1.2);
+}
+
+.carousel-dots .dot:hover {
+  background: #94a3b8;
+}
+
+/* Contribution selector */
+.contribution-selector {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.contribution-selector:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Section header fixes */
+.contribution-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.contribution-section .section-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Chart type selector */
+.chart-selector {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+/* Chart section */
+.chart-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f1f5f9;
+}
+
+.chart-container {
+  position: relative;
+  height: 200px;
+  width: 100%;
+  margin: 20px 0;
+}
+
+/* Chart legend */
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .pie-chart canvas {
+    width: 180px !important;
+    height: 180px !important;
+  }
+  
+  .pie-legend {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-width: 200px;
+  }
+  
+  .contribution-section .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .contribution-selector,
+  .chart-selector {
+    width: 100%;
+  }
+  
+  .carousel-nav {
+    gap: 15px;
+  }
+  
+  .carousel-nav-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Ensure the container doesn't collapse */
+.pie-chart-wrapper {
+  min-height: 320px;
+}
+
+/* Debug helper - remove this after fixing */
+/* .pie-chart {
+  border: 1px dashed #dc2626;
+}
+
+.pie-chart.active {
+  border: 1px solid #22c55e;
+} */
+
+/* Fix for canvas rendering issues */
+canvas {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Prevent text selection on charts */
+.chart-container,
+.pie-chart-container {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Loading state for charts */
+.chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Animation for chart switching */
+@keyframes chartFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pie-chart.active {
+  animation: chartFadeIn 0.3s ease;
+}
+/* ========== CONTRIBUTION CHART FIXES ========== */
+
+.contribution-section {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border: 1px solid #f1f5f9;
+}
+
+.chart-container {
+  position: relative;
+  height: 250px;
+  width: 100%;
+  margin: 16px 0;
+}
+
+#contributionChart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.carousel-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 1px solid #e5e7eb;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.carousel-nav-btn:hover {
+  background: #e5e7eb;
+  transform: scale(1.1);
+}
+
+.carousel-dots {
+  display: flex;
+  gap: 12px;
+}
+
+.carousel-dots .dot {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #e5e7eb;
+}
+
+.carousel-dots .dot.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.carousel-dots .dot:hover {
+  background: #e5e7eb;
+}
+
+.chart-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  font-size: 13px;
+  color: #334155;
+  flex: 1;
+}
+
+.legend-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.contribution-selector {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #334155;
+  background: white;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.contribution-selector:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .chart-legend {
+    grid-template-columns: 1fr;
+  }
+  
+  .carousel-dots .dot {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  
+  .carousel-nav {
+    gap: 10px;
+  }
+  
+  .carousel-nav-btn {
+    width: 36px;
+    height: 36px;
+  }
+}
