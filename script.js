@@ -1,4 +1,4 @@
-// script.js - UPDATED with proper form navigation
+// script.js - UPDATED VERSION with Charts and Complaint Form
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("SalesBuddy Application Initialized");
@@ -11,8 +11,13 @@ document.addEventListener("DOMContentLoaded", () => {
     tasks: document.getElementById('tasksScreen'),
     leadDetail: document.getElementById('leadDetailScreen'),
     taskDetail: document.getElementById('taskDetailScreen'),
+    taskForm: document.getElementById('taskFormScreen'),
     leadForm: document.getElementById('leadFormScreen'),
     opportunityForm: document.getElementById('opportunityFormScreen'),
+    customerForm: document.getElementById('customerFormScreen'),
+    visitForm: document.getElementById('visitFormScreen'),
+    visitDetail: document.getElementById('visitDetailScreen'),
+    notifications: document.getElementById('notificationsScreen'),
     ideas: document.getElementById('ideasScreen'),
     planner: document.getElementById('plannerScreen'),
     opportunities: document.getElementById('opportunitiesScreen'),
@@ -22,11 +27,14 @@ document.addEventListener("DOMContentLoaded", () => {
     customers: document.getElementById('customersScreen'),
     customerDetail: document.getElementById('customerDetailScreen'),
     complaints: document.getElementById('complaintsScreen'),
-    complaintDetail: document.getElementById('complaintDetailScreen')
+    visits: document.getElementById('visitsScreen'),
+    complaintDetail: document.getElementById('complaintDetailScreen'),
+    complaintForm: document.getElementById('complaintFormScreen')
   };
 
   let currentScreen = 'dashboard';
   let screenHistory = [];
+  let currentVisitId = null;
 
   const showScreen = (screenId) => {
     // Hide all screens
@@ -43,13 +51,13 @@ document.addEventListener("DOMContentLoaded", () => {
       screen.classList.remove('hidden');
       setTimeout(() => {
         screen.classList.add('active');
-        // Scroll to top when changing screens
         screen.scrollTop = 0;
       }, 10);
       
-      // Update history
-      screenHistory.push(screenId);
-      currentScreen = screenId;
+      if (screenId !== currentScreen) {
+        screenHistory.push(screenId);
+        currentScreen = screenId;
+      }
       
       // Load data for specific screens
       if (screenId === 'ideas') {
@@ -57,14 +65,27 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (screenId === 'planner') {
         loadPlannerEvents();
         updateCalendar(new Date());
+      } else if (screenId === 'notifications') {
+        updateNotificationCount();
+      } else if (screenId === 'visits') {
+        loadVisitsData();
+      } else if (screenId === 'visitForm') {
+        autoGenerateVisitDateTime();
+      } else if (screenId === 'visitDetail') {
+        updateEndVisitButtonVisibility();
+      } else if (screenId === 'complaintForm') {
+        autoFillComplaintContactInfo();
+      } else if (screenId === 'sales') {
+        // Initialize charts when sales screen is shown
+        setTimeout(initializeSalesCharts, 100);
       }
     }
   };
 
   const goBack = () => {
     if (screenHistory.length > 1) {
-      screenHistory.pop(); // Remove current
-      const prevScreen = screenHistory.pop();
+      screenHistory.pop();
+      const prevScreen = screenHistory[screenHistory.length - 1];
       if (prevScreen && screens[prevScreen]) {
         showScreen(prevScreen);
       } else {
@@ -75,8 +96,351 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // ========== VISIT FORM - AUTO-GENERATE DATE/TIME ==========
+  function autoGenerateVisitDateTime() {
+    const now = new Date();
+    const currentDate = now.toISOString().split('T')[0];
+    
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().split('T')[0];
+    
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const roundedMinute = Math.ceil(currentMinute / 30) * 30;
+    
+    let startHour = currentHour;
+    let startMinute = roundedMinute;
+    
+    if (startMinute >= 60) {
+      startHour += 1;
+      startMinute = 0;
+    }
+    
+    if (startHour >= 24) {
+      startHour = 9;
+    }
+    
+    const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+    
+    let endHour = startHour + 1;
+    let endMinute = startMinute + 30;
+    
+    if (endMinute >= 60) {
+      endHour += 1;
+      endMinute -= 60;
+    }
+    
+    const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+    
+    const visitDateInput = document.getElementById('sbVisitDate');
+    const visitStartTimeInput = document.getElementById('sbVisitStartTime');
+    const visitEndTimeInput = document.getElementById('sbVisitEndTime');
+    
+    if (visitDateInput) {
+      visitDateInput.value = tomorrowDate;
+    }
+    
+    if (visitStartTimeInput) {
+      visitStartTimeInput.value = startTime;
+    }
+    
+    if (visitEndTimeInput) {
+      visitEndTimeInput.value = endTime;
+    }
+    
+    updateAutoGeneratedIndicators();
+  }
+
+  function updateAutoGeneratedIndicators() {
+    const autoGenTexts = document.querySelectorAll('.auto-gen-text');
+    autoGenTexts.forEach(text => {
+      text.style.display = 'inline';
+      text.style.color = '#22c55e';
+      text.style.fontSize = '0.8rem';
+      text.style.fontWeight = '600';
+    });
+  }
+
+  // ========== VISIT DETAIL - END VISIT FUNCTIONALITY ==========
+  function updateEndVisitButtonVisibility() {
+    const endVisitSection = document.getElementById('endVisitSection');
+    const statusButtons = document.querySelectorAll('.status-buttons .status-btn');
+    
+    if (!endVisitSection || !statusButtons.length) return;
+    
+    let isInProgress = false;
+    statusButtons.forEach(button => {
+      if (button.classList.contains('active') && button.dataset.status === 'in-progress') {
+        isInProgress = true;
+      }
+    });
+    
+    endVisitSection.style.display = isInProgress ? 'block' : 'none';
+  }
+
+  function initVisitStatusButtons() {
+    const statusButtons = document.querySelectorAll('#visitDetailScreen .status-btn');
+    
+    statusButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        statusButtons.forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+        
+        if (currentVisitId && mockData.visits[currentVisitId]) {
+          mockData.visits[currentVisitId].status = this.dataset.status;
+          
+          if (this.dataset.status === 'completed') {
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            const currentTimeRange = mockData.visits[currentVisitId].time;
+            if (currentTimeRange && currentTimeRange.includes(' - ')) {
+              const startTime = currentTimeRange.split(' - ')[0];
+              mockData.visits[currentVisitId].time = `${startTime} - ${currentTime}`;
+              mockData.visits[currentVisitId].duration = calculateDuration(startTime, currentTime);
+              
+              const timeEl = document.getElementById('visitDetailTime');
+              if (timeEl) timeEl.textContent = `${startTime} - ${currentTime}`;
+            }
+            
+            showToast('Visit marked as completed!');
+          }
+          
+          loadVisitsData();
+          updateEndVisitButtonVisibility();
+        }
+      });
+    });
+    
+    const endVisitBtn = document.getElementById('endVisitBtn');
+    if (endVisitBtn) {
+      endVisitBtn.addEventListener('click', function() {
+        const completedBtn = document.querySelector('#visitDetailScreen .status-btn[data-status="completed"]');
+        if (completedBtn) {
+          completedBtn.click();
+          
+          const now = new Date();
+          const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          showToast(`Visit ended at ${currentTime}`);
+        }
+      });
+    }
+  }
+
+  // ========== TOAST NOTIFICATION ==========
+  function showToast(message, type = 'success') {
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+      <div class="toast-content">
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+      </div>
+      <button class="toast-close"><i class="fas fa-times"></i></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
+    }, 3000);
+    
+    const closeBtn = toast.querySelector('.toast-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+      });
+    }
+  }
+
+  // ========== NETWORK STATUS FUNCTIONALITY ==========
+  const networkBtn = document.getElementById('networkBtn');
+  const networkDropdown = document.getElementById('networkDropdown');
+  const testNetworkBtn = document.getElementById('testNetworkBtn');
+  const networkSpeedEl = document.getElementById('networkSpeed');
+  const networkStrengthEl = document.getElementById('networkStrength');
+  const networkLatencyEl = document.getElementById('networkLatency');
+  const networkStatusBadge = document.querySelector('.network-status-badge');
+
+  if (networkBtn && networkDropdown) {
+    networkBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      networkDropdown.classList.toggle('hidden');
+      const notificationDropdown = document.getElementById('notificationDropdown');
+      if (notificationDropdown) notificationDropdown.classList.add('hidden');
+    });
+  }
+
+  if (testNetworkBtn) {
+    testNetworkBtn.addEventListener('click', () => {
+      testNetworkSpeed();
+    });
+  }
+
+  function testNetworkSpeed() {
+    if (!networkSpeedEl || !networkStrengthEl || !networkLatencyEl) return;
+    
+    networkSpeedEl.textContent = 'Testing...';
+    networkSpeedEl.style.color = '#f59e0b';
+    networkStrengthEl.textContent = 'Testing...';
+    networkStrengthEl.style.color = '#f59e0b';
+    networkLatencyEl.textContent = 'Testing...';
+    networkLatencyEl.style.color = '#f59e0b';
+    
+    setTimeout(() => {
+      const downloadSpeed = (Math.random() * 50 + 10).toFixed(1);
+      const uploadSpeed = (Math.random() * 20 + 5).toFixed(1);
+      const latency = Math.floor(Math.random() * 100 + 20);
+      
+      networkSpeedEl.textContent = `${downloadSpeed} Mbps / ${uploadSpeed} Mbps`;
+      networkSpeedEl.style.color = '#22c55e';
+      
+      let strength = 'Excellent';
+      let strengthColor = '#22c55e';
+      if (parseFloat(downloadSpeed) < 20) {
+        strength = 'Good';
+        strengthColor = '#f59e0b';
+      }
+      if (parseFloat(downloadSpeed) < 10) {
+        strength = 'Poor';
+        strengthColor = '#ef4444';
+      }
+      
+      networkStrengthEl.textContent = strength;
+      networkStrengthEl.style.color = strengthColor;
+      
+      networkLatencyEl.textContent = `${latency}ms`;
+      networkLatencyEl.style.color = latency < 50 ? '#22c55e' : latency < 100 ? '#f59e0b' : '#ef4444';
+      
+      if (networkStatusBadge) {
+        networkStatusBadge.textContent = strength === 'Poor' ? 'Slow' : 'Online';
+        networkStatusBadge.className = `network-status-badge ${strength === 'Poor' ? 'offline' : 'online'}`;
+      }
+    }, 1500);
+  }
+
+  document.addEventListener('click', (e) => {
+    const networkDropdown = document.getElementById('networkDropdown');
+    const notificationDropdown = document.getElementById('notificationDropdown');
+    
+    if (networkDropdown && !e.target.closest('.network-status') && !e.target.closest('.network-dropdown')) {
+      networkDropdown.classList.add('hidden');
+    }
+    if (notificationDropdown && !e.target.closest('.notification') && !e.target.closest('.notification-dropdown')) {
+      notificationDropdown.classList.add('hidden');
+    }
+  });
+
+  if (navigator.onLine) {
+    testNetworkSpeed();
+  } else {
+    if (networkSpeedEl) networkSpeedEl.textContent = 'Offline';
+    if (networkStrengthEl) networkStrengthEl.textContent = 'No Connection';
+    if (networkLatencyEl) networkLatencyEl.textContent = 'N/A';
+    if (networkStatusBadge) {
+      networkStatusBadge.textContent = 'Offline';
+      networkStatusBadge.className = 'network-status-badge offline';
+    }
+  }
+
+  // ========== NOTIFICATIONS ==========
+  const notificationBtn = document.getElementById('notificationBtn');
+  const notificationDropdown = document.getElementById('notificationDropdown');
+  const viewAllNotificationsBtn = document.getElementById('viewAllNotificationsBtn');
+  const markAllReadBtn = document.getElementById('markAllReadBtn');
+  const notificationCount = document.querySelector('.notification span');
+
+  if (notificationBtn && notificationDropdown) {
+    notificationBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      notificationDropdown.classList.toggle('hidden');
+      if (networkDropdown) networkDropdown.classList.add('hidden');
+    });
+  }
+
+  if (viewAllNotificationsBtn) {
+    viewAllNotificationsBtn.addEventListener('click', () => {
+      showScreen('notifications');
+      notificationDropdown.classList.add('hidden');
+    });
+  }
+
+  if (markAllReadBtn) {
+    markAllReadBtn.addEventListener('click', () => {
+      document.querySelectorAll('.notification-full-item.unread').forEach(item => {
+        item.classList.remove('unread');
+      });
+      updateNotificationCount();
+    });
+  }
+
+  document.querySelectorAll('.notification-dismiss').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const notificationItem = this.closest('.notification-full-item');
+      if (notificationItem) {
+        notificationItem.style.display = 'none';
+        updateNotificationCount();
+      }
+    });
+  });
+
+  function updateNotificationCount() {
+    if (!notificationCount) return;
+    
+    const unreadCount = document.querySelectorAll('.notification-full-item.unread').length;
+    notificationCount.textContent = unreadCount > 0 ? unreadCount : '';
+    
+    const bellCount = document.querySelector('.notification span');
+    if (bellCount) {
+      bellCount.textContent = unreadCount > 0 ? unreadCount : '';
+    }
+  }
+
+  document.querySelectorAll('#notificationsScreen .filter-option').forEach(option => {
+    option.addEventListener('click', function() {
+      this.closest('.filter-section').querySelectorAll('.filter-option').forEach(opt => {
+        opt.classList.remove('active');
+      });
+      this.classList.add('active');
+      
+      const filter = this.dataset.filter || 'all';
+      
+      document.querySelectorAll('.notification-full-item').forEach(item => {
+        const type = item.dataset.type;
+        
+        switch(filter) {
+          case 'all':
+            item.style.display = 'flex';
+            break;
+          case 'unread':
+            item.style.display = item.classList.contains('unread') ? 'flex' : 'none';
+            break;
+          case 'tasks':
+          case 'leads':
+          case 'system':
+            item.style.display = type === filter ? 'flex' : 'none';
+            break;
+        }
+      });
+    });
+  });
+
   // ========== DASHBOARD CARD NAVIGATION ==========
-  // Sales Target Card
   const salesTargetCard = document.getElementById('salesTargetCard');
   if (salesTargetCard) {
     salesTargetCard.addEventListener('click', () => {
@@ -84,15 +448,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Leads Card - Go to Leads screen (NOT Lead Form)
-  const leadsCard = document.getElementById('leadsCard');
-  if (leadsCard) {
-    leadsCard.addEventListener('click', () => {
-      showScreen('leads');
-    });
-  }
-
-  // Tasks Card
   const tasksCard = document.getElementById('tasksCard');
   if (tasksCard) {
     tasksCard.addEventListener('click', () => {
@@ -100,7 +455,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Opportunities Card - Go to Opportunities screen (NOT Opportunity Form)
+  const leadsCard = document.getElementById('leadsCard');
+  if (leadsCard) {
+    leadsCard.addEventListener('click', () => {
+      showScreen('leads');
+    });
+  }
+
   const opportunitiesCard = document.getElementById('opportunitiesCard');
   if (opportunitiesCard) {
     opportunitiesCard.addEventListener('click', () => {
@@ -108,7 +469,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Proposals Card
   const proposalsCard = document.getElementById('proposalsCard');
   if (proposalsCard) {
     proposalsCard.addEventListener('click', () => {
@@ -116,7 +476,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Customers Card
   const customersCard = document.getElementById('customersCard');
   if (customersCard) {
     customersCard.addEventListener('click', () => {
@@ -124,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Complaints Card
   const complaintsCard = document.getElementById('complaintsCard');
   if (complaintsCard) {
     complaintsCard.addEventListener('click', () => {
@@ -132,32 +490,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // New Lead Form Card - Goes to Lead Form
-  const newLeadFormCard = document.getElementById('newLeadFormCard');
-  if (newLeadFormCard) {
-    newLeadFormCard.addEventListener('click', () => {
-      showScreen('leadForm');
-    });
-  }
-
-  // New Opportunity Form Card - Goes to Opportunity Form
-  const newOpportunityFormCard = document.getElementById('newOpportunityFormCard');
-  if (newOpportunityFormCard) {
-    newOpportunityFormCard.addEventListener('click', () => {
-      showScreen('opportunityForm');
+  const visitsCard = document.getElementById('visitsCard');
+  if (visitsCard) {
+    visitsCard.addEventListener('click', () => {
+      loadVisitsData();
+      showScreen('visits');
     });
   }
 
   // ========== BACK BUTTONS ==========
-  // Add all back button event listeners...
   const backButtons = {
     sales: document.getElementById('backFromSales'),
     leads: document.getElementById('backFromLeads'),
     tasks: document.getElementById('backFromTasks'),
     leadDetail: document.getElementById('backFromLeadDetail'),
     taskDetail: document.getElementById('backFromTaskDetail'),
+    taskForm: document.getElementById('backFromTaskForm'),
     leadForm: document.getElementById('backFromLeadForm'),
     opportunityForm: document.getElementById('backFromOpportunityForm'),
+    customerForm: document.getElementById('backFromCustomerForm'),
+    visitForm: document.getElementById('backFromVisitForm'),
+    visitDetail: document.getElementById('backFromVisitDetail'),
+    notifications: document.getElementById('backFromNotifications'),
     ideas: document.getElementById('backFromIdeas'),
     planner: document.getElementById('backFromPlanner'),
     opportunities: document.getElementById('backFromOpportunities'),
@@ -167,7 +521,9 @@ document.addEventListener("DOMContentLoaded", () => {
     customers: document.getElementById('backFromCustomers'),
     customerDetail: document.getElementById('backFromCustomerDetail'),
     complaints: document.getElementById('backFromComplaints'),
-    complaintDetail: document.getElementById('backFromComplaintDetail')
+    visits: document.getElementById('backFromVisits'),
+    complaintDetail: document.getElementById('backFromComplaintDetail'),
+    complaintForm: document.getElementById('backFromComplaintForm')
   };
 
   Object.values(backButtons).forEach(button => {
@@ -176,88 +532,1177 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ========== CREATE BUTTONS INSIDE SCREENS ==========
-  // In Leads Screen - Add a Create Lead button
-  const leadsScreen = document.getElementById('leadsScreen');
-  if (leadsScreen) {
-    // Create a Create Lead button for Leads screen header
-    const createLeadInLeadsBtn = document.createElement('button');
-    createLeadInLeadsBtn.innerHTML = '<i class="fas fa-plus"></i>';
-    createLeadInLeadsBtn.className = 'edit-btn';
-    createLeadInLeadsBtn.style.marginLeft = 'auto';
-    createLeadInLeadsBtn.title = 'Create New Lead';
-    
-    // Find the leads header and add the button
-    const leadsHeader = leadsScreen.querySelector('.sub-header');
-    if (leadsHeader) {
-      // Check if button already exists
-      const existingBtn = leadsHeader.querySelector('.create-lead-btn');
-      if (!existingBtn) {
-        createLeadInLeadsBtn.classList.add('create-lead-btn');
-        leadsHeader.appendChild(createLeadInLeadsBtn);
-        
-        createLeadInLeadsBtn.addEventListener('click', () => {
+  // ========== CREATE MENU (NAV FAB) ==========
+  const navFab = document.getElementById('navFab');
+  const createMenu = document.getElementById('createMenu');
+  const closeCreateMenu = document.getElementById('closeCreateMenu');
+
+  if (navFab && createMenu) {
+    navFab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      createMenu.classList.remove('hidden');
+    });
+  }
+
+  if (closeCreateMenu && createMenu) {
+    closeCreateMenu.addEventListener('click', () => {
+      createMenu.classList.add('hidden');
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (createMenu && !createMenu.classList.contains('hidden')) {
+      if (!e.target.closest('.nav-fab-container') && !e.target.closest('.create-menu')) {
+        createMenu.classList.add('hidden');
+      }
+    }
+  });
+
+  // Create menu items
+  document.querySelectorAll('.create-menu-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const action = this.dataset.action;
+      if (createMenu) createMenu.classList.add('hidden');
+      
+      switch(action) {
+        case 'lead':
           showScreen('leadForm');
-        });
-      }
-    }
-  }
-
-  // In Opportunities Screen - Add a Create Opportunity button
-  const opportunitiesScreen = document.getElementById('opportunitiesScreen');
-  if (opportunitiesScreen) {
-    // Create a Create Opportunity button for Opportunities screen header
-    const createOppInOppsBtn = document.createElement('button');
-    createOppInOppsBtn.innerHTML = '<i class="fas fa-plus"></i>';
-    createOppInOppsBtn.className = 'edit-btn';
-    createOppInOppsBtn.style.marginLeft = 'auto';
-    createOppInOppsBtn.title = 'Create New Opportunity';
-    
-    // Find the opportunities header and add the button
-    const oppsHeader = opportunitiesScreen.querySelector('.sub-header');
-    if (oppsHeader) {
-      // Check if button already exists
-      const existingBtn = oppsHeader.querySelector('.create-opp-btn');
-      if (!existingBtn) {
-        createOppInOppsBtn.classList.add('create-opp-btn');
-        oppsHeader.appendChild(createOppInOppsBtn);
-        
-        createOppInOppsBtn.addEventListener('click', () => {
+          break;
+        case 'opportunity':
           showScreen('opportunityForm');
-        });
+          break;
+        case 'task':
+          showScreen('taskForm');
+          break;
+        case 'customer':
+          showScreen('customerForm');
+          break;
+        case 'visit':
+          showScreen('visitForm');
+          break;
+        case 'complaint':
+          showScreen('complaintForm');
+          break;
+        case 'proposal':
+          showScreen('proposalForm');
+          break;
       }
+    });
+  });
+
+  // ========== EVENT FORM FUNCTIONALITY ==========
+  const eventFormModal = document.getElementById('eventFormModal');
+  const eventForm = document.getElementById('eventForm');
+  const closeEventForm = document.getElementById('closeEventForm');
+  const cancelEventForm = document.getElementById('cancelEventForm');
+  const addEventBtn = document.getElementById('addEventBtn');
+
+  if (addEventBtn) {
+    addEventBtn.addEventListener('click', () => {
+      openEventForm();
+    });
+  }
+
+  function openEventForm(type = '') {
+    const eventTypeSelect = document.getElementById('eventType');
+    const eventDateInput = document.getElementById('eventDate');
+    
+    if (eventTypeSelect && type) {
+      eventTypeSelect.value = type;
+    }
+    
+    if (eventDateInput) {
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      eventDateInput.value = formattedDate;
+    }
+    
+    if (eventFormModal) {
+      eventFormModal.classList.remove('hidden');
     }
   }
 
-  // ========== FAB CREATE BUTTONS ==========
-  // These are the floating buttons at bottom right of list screens
-  const createOpportunityFab = document.getElementById('createOpportunityBtn');
-  if (createOpportunityFab) {
-    createOpportunityFab.addEventListener('click', () => {
-      showScreen('opportunityForm');
+  if (closeEventForm) {
+    closeEventForm.addEventListener('click', () => {
+      if (eventFormModal) eventFormModal.classList.add('hidden');
     });
   }
 
-  const createProposalFab = document.getElementById('createProposalBtn');
-  if (createProposalFab) {
-    createProposalFab.addEventListener('click', () => {
-      alert('Create Proposal functionality coming soon!');
+  if (cancelEventForm) {
+    cancelEventForm.addEventListener('click', () => {
+      if (eventFormModal) eventFormModal.classList.add('hidden');
     });
   }
 
-  const createComplaintFab = document.getElementById('createComplaintBtn');
-  if (createComplaintFab) {
-    createComplaintFab.addEventListener('click', () => {
-      alert('Create Complaint functionality coming soon!');
+  if (eventForm) {
+    eventForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        title: document.getElementById('eventTitle').value,
+        type: document.getElementById('eventType').value,
+        priority: document.getElementById('eventPriority').value,
+        date: document.getElementById('eventDate').value,
+        time: document.getElementById('eventTime').value,
+        duration: document.getElementById('eventDuration').value,
+        reminder: document.getElementById('eventReminder').value,
+        description: document.getElementById('eventDescription').value,
+        related: document.getElementById('eventRelated').value,
+        location: document.getElementById('eventLocation').value
+      };
+      
+      const newEvent = {
+        id: Date.now(),
+        title: formData.title,
+        type: formData.type,
+        priority: formData.priority,
+        date: formData.date,
+        time: formData.time,
+        duration: `${formData.duration} min`,
+        description: formData.description || 'No description provided.',
+        location: formData.location || 'Not specified'
+      };
+      
+      if (!mockData.plannerEvents) {
+        mockData.plannerEvents = [];
+      }
+      mockData.plannerEvents.unshift(newEvent);
+      
+      loadPlannerEvents();
+      alert('Event scheduled successfully!');
+      this.reset();
+      if (eventFormModal) eventFormModal.classList.add('hidden');
     });
   }
 
-  const createCustomerFab = document.getElementById('createCustomerBtn');
-  if (createCustomerFab) {
-    createCustomerFab.addEventListener('click', () => {
-      alert('Create Customer functionality coming soon!');
+  document.addEventListener('click', (e) => {
+    if (eventFormModal && !eventFormModal.classList.contains('hidden')) {
+      if (!e.target.closest('.modal-content') && !e.target.closest('#addEventBtn')) {
+        eventFormModal.classList.add('hidden');
+      }
+    }
+  });
+
+  // ========== TASK FORM HANDLING ==========
+  const taskForm = document.getElementById('taskForm');
+  const cancelTaskBtn = document.getElementById('cancelTaskBtn');
+
+  if (taskForm) {
+    taskForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        title: document.getElementById('sbTaskTitle').value,
+        description: document.getElementById('sbTaskDescription').value,
+        associateWith: document.getElementById('sbAssociateWith').value,
+        opportunity: document.getElementById('sbTaskOpportunity').value,
+        taskType: document.getElementById('sbTaskType').value,
+        assignTo: document.getElementById('sbTaskAssignTo').value,
+        startDate: document.getElementById('sbTaskStartDate').value,
+        startTime: document.getElementById('sbTaskStartTime').value,
+        endDate: document.getElementById('sbTaskEndDate').value,
+        endTime: document.getElementById('sbTaskEndTime').value,
+        priority: document.getElementById('sbTaskPriority').value,
+        status: document.getElementById('sbTaskStatus').value,
+        personToMeet: document.getElementById('sbTaskPersonToMeet').value,
+        reminder: document.getElementById('sbTaskReminder').value,
+        notificationPerson: document.getElementById('sbTaskNotificationPerson').value,
+        notificationType: document.getElementById('sbTaskNotificationType').value,
+        comments: document.getElementById('sbTaskComments').value
+      };
+      
+      const newTaskId = Object.keys(mockData.tasks).length + 1;
+      const relatedLead = getRelatedLeadName(formData.opportunity);
+      
+      mockData.tasks[newTaskId] = {
+        title: formData.title,
+        description: formData.description || 'No description provided.',
+        priority: formData.priority || 'Medium',
+        status: formData.status || 'pending',
+        assignedTo: formData.assignTo || 'Self',
+        startDate: formData.startDate || new Date().toISOString().split('T')[0],
+        startTime: formData.startTime || '09:00',
+        endDate: formData.endDate,
+        endTime: formData.endTime,
+        taskType: formData.taskType || 'follow-up',
+        opportunity: formData.opportunity || 'None',
+        personToMeet: formData.personToMeet,
+        reminder: formData.reminder,
+        comments: formData.comments
+      };
+      
+      alert('Task created successfully!');
+      showScreen('tasks');
+      this.reset();
     });
   }
+
+  if (cancelTaskBtn) {
+    cancelTaskBtn.addEventListener('click', () => {
+      showScreen('tasks');
+    });
+  }
+
+  // ========== LEAD FORM HANDLING ==========
+  const leadForm = document.getElementById('salesbuddyLeadForm');
+  const cancelLeadBtn = document.getElementById('cancelLeadBtn');
+  const addAgencyBtn = document.getElementById('addAgencyBtn');
+
+  if (addAgencyBtn) {
+    addAgencyBtn.addEventListener('click', () => {
+      const agencyName = prompt('Enter new agency name:');
+      if (agencyName) {
+        const agencyInput = document.getElementById('sbAgency');
+        if (agencyInput) {
+          agencyInput.value = agencyName;
+        }
+      }
+    });
+  }
+
+  const leadFormUploadBtn = document.getElementById('leadFormUploadBtn');
+  const leadFormFileInput = document.getElementById('leadFormFileInput');
+  const leadFormUploadedFiles = document.getElementById('leadFormUploadedFiles');
+
+  if (leadFormUploadBtn && leadFormFileInput) {
+    leadFormUploadBtn.addEventListener('click', () => {
+      leadFormFileInput.click();
+    });
+
+    leadFormFileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        addUploadedFile(file, leadFormUploadedFiles);
+      });
+    });
+  }
+
+  if (leadForm) {
+    leadForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        name: document.getElementById('sbLeadName').value,
+        description: document.getElementById('sbLeadDescription').value,
+        agency: document.getElementById('sbAgency').value,
+        client: document.getElementById('sbClient').value,
+        mmProducts: document.getElementById('sbMmProducts').value,
+        tag: document.getElementById('sbLeadTag').value,
+        assignTo: document.getElementById('sbAssignTo').value,
+        primaryContact: document.getElementById('sbPrimaryContact').value,
+        clientContact: document.getElementById('sbClientContact').value,
+        clientProduct: document.getElementById('sbClientProduct').value,
+        brand: document.getElementById('sbBrand').value,
+        industry: document.getElementById('sbIndustry').value,
+        rollingMonth: document.getElementById('sbRollingMonth').value,
+        source: document.getElementById('sbSource').value,
+        mmDivision: document.getElementById('sbMmDivision').value,
+        subDivision: document.getElementById('sbSubDivision').value,
+        region: document.getElementById('sbRegion').value,
+        status: document.getElementById('sbLeadStatus').value,
+        notification: document.getElementById('sbSendNotification').value
+      };
+      
+      const newLeadId = Object.keys(mockData.leads).length + 1;
+      const initials = formData.name ? formData.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'NA';
+      
+      mockData.leads[newLeadId] = {
+        name: formData.name,
+        company: formData.client || 'Unknown Company',
+        status: formData.status || 'New',
+        contactNumber: '+91 98765 43210',
+        region: formData.region || 'Unknown',
+        industry: formData.industry || 'Unknown',
+        assignedTo: formData.assignTo || 'Unassigned',
+        division: formData.mmDivision || 'Unknown',
+        product: formData.mmProducts || 'Unknown',
+        brand: formData.brand || 'Unknown',
+        agency: formData.agency || 'Unknown',
+        clientContact: formData.clientContact || 'Unknown',
+        clientProduct: formData.clientProduct || 'Unknown',
+        rollingMonth: formData.rollingMonth || 'Unknown',
+        source: formData.source || 'Unknown',
+        subDivision: formData.subDivision || 'Unknown',
+        lastContact: new Date().toISOString().split('T')[0],
+        tags: formData.tag ? [formData.tag] : [],
+        initials: initials
+      };
+      
+      alert('Lead created successfully!');
+      showScreen('leads');
+      this.reset();
+      if (leadFormUploadedFiles) leadFormUploadedFiles.innerHTML = '';
+    });
+  }
+
+  if (cancelLeadBtn) {
+    cancelLeadBtn.addEventListener('click', () => {
+      showScreen('dashboard');
+    });
+  }
+
+  // ========== OPPORTUNITY FORM ==========
+  const opportunityForm = document.getElementById('salesbuddyOpportunityForm');
+  const cancelOpportunityBtn = document.getElementById('cancelOpportunityBtn');
+  const probabilityInput = document.getElementById('sbProbability');
+  const probabilityValue = document.getElementById('sbProbabilityValue');
+  const addOpportunityAgencyBtn = document.getElementById('addOpportunityAgencyBtn');
+  const addOpportunityClientBtn = document.getElementById('addOpportunityClientBtn');
+
+  if (probabilityInput && probabilityValue) {
+    probabilityInput.addEventListener('input', function() {
+      probabilityValue.textContent = `${this.value}%`;
+    });
+  }
+
+  if (addOpportunityAgencyBtn) {
+    addOpportunityAgencyBtn.addEventListener('click', () => {
+      const agencyName = prompt('Enter new agency name:');
+      if (agencyName) {
+        const agencyInput = document.getElementById('sbOpportunityAgency');
+        if (agencyInput) {
+          agencyInput.value = agencyName;
+        }
+      }
+    });
+  }
+
+  if (addOpportunityClientBtn) {
+    addOpportunityClientBtn.addEventListener('click', () => {
+      const clientName = prompt('Enter new client name:');
+      if (clientName) {
+        const clientInput = document.getElementById('sbOpportunityClient');
+        if (clientInput) {
+          clientInput.value = clientName;
+        }
+      }
+    });
+  }
+
+  const opportunityFormUploadBtn = document.getElementById('opportunityFormUploadBtn');
+  const opportunityFormFileInput = document.getElementById('opportunityFormFileInput');
+  const opportunityFormUploadedFiles = document.getElementById('opportunityFormUploadedFiles');
+
+  if (opportunityFormUploadBtn && opportunityFormFileInput) {
+    opportunityFormUploadBtn.addEventListener('click', () => {
+      opportunityFormFileInput.click();
+    });
+
+    opportunityFormFileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        addUploadedFile(file, opportunityFormUploadedFiles);
+      });
+    });
+  }
+
+  if (opportunityForm) {
+    opportunityForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        name: document.getElementById('sbOpportunityName').value,
+        description: document.getElementById('sbOpportunityDescription').value,
+        agency: document.getElementById('sbOpportunityAgency').value,
+        client: document.getElementById('sbOpportunityClient').value,
+        expectedValue: document.getElementById('sbExpectedValue').value,
+        stage: document.getElementById('sbOpportunityStage').value,
+        probability: document.getElementById('sbProbability').value,
+        product: document.getElementById('sbOpportunityProducts').value,
+        tag: document.getElementById('sbOpportunityTag').value,
+        assignTo: document.getElementById('sbOpportunityAssignTo').value,
+        primaryContact: document.getElementById('sbOpportunityPrimaryContact').value,
+        clientContact: document.getElementById('sbOpportunityClientContact').value,
+        clientProduct: document.getElementById('sbOpportunityClientProduct').value,
+        brand: document.getElementById('sbOpportunityBrand').value,
+        industry: document.getElementById('sbOpportunityIndustry').value,
+        rollingMonth: document.getElementById('sbOpportunityRollingMonth').value,
+        source: document.getElementById('sbOpportunitySource').value,
+        division: document.getElementById('sbOpportunityMmDivision').value,
+        subDivision: document.getElementById('sbOpportunitySubDivision').value,
+        region: document.getElementById('sbOpportunityRegion').value,
+        status: document.getElementById('sbOpportunityStatus').value,
+        notification: document.getElementById('sbOpportunitySendNotification').value
+      };
+      
+      const newOppId = Object.keys(mockData.opportunities).length + 1;
+      const value = formData.expectedValue ? `₹${parseFloat(formData.expectedValue).toFixed(1)}L` : '₹0';
+      
+      mockData.opportunities[newOppId] = {
+        title: formData.name,
+        company: formData.client || 'Unknown Company',
+        stage: formData.stage || 'Qualification',
+        value: value,
+        probability: parseInt(formData.probability) || 10,
+        expectedClose: new Date().toISOString().split('T')[0],
+        owner: formData.assignTo || 'Unassigned',
+        description: formData.description || 'No description provided.',
+        division: formData.division || 'Unknown',
+        region: formData.region || 'Unknown',
+        product: formData.product || 'Unknown',
+        brand: formData.brand || 'Unknown',
+        industry: formData.industry || 'Unknown',
+        agency: formData.agency || 'Unknown',
+        clientContact: formData.clientContact || 'Unknown',
+        clientProduct: formData.clientProduct || 'Unknown',
+        rollingMonth: formData.rollingMonth || 'Unknown',
+        source: formData.source || 'Unknown',
+        subDivision: formData.subDivision || 'Unknown'
+      };
+      
+      alert('Opportunity created successfully!');
+      showScreen('opportunities');
+      this.reset();
+      if (probabilityValue) {
+        probabilityValue.textContent = '50%';
+      }
+      if (opportunityFormUploadedFiles) opportunityFormUploadedFiles.innerHTML = '';
+    });
+  }
+
+  if (cancelOpportunityBtn) {
+    cancelOpportunityBtn.addEventListener('click', () => {
+      showScreen('dashboard');
+    });
+  }
+
+  // ========== CUSTOMER FORM ==========
+  const customerForm = document.getElementById('salesbuddyCustomerForm');
+  const cancelCustomerBtn = document.getElementById('cancelCustomerBtn');
+
+  if (customerForm) {
+    customerForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        companyName: document.getElementById('sbCustomerCompanyName').value,
+        contactPerson: document.getElementById('sbCustomerContactPerson').value,
+        email: document.getElementById('sbCustomerEmail').value,
+        phone: document.getElementById('sbCustomerPhone').value,
+        industry: document.getElementById('sbCustomerIndustry').value,
+        website: document.getElementById('sbCustomerWebsite').value,
+        address: document.getElementById('sbCustomerAddress').value,
+        city: document.getElementById('sbCustomerCity').value,
+        state: document.getElementById('sbCustomerState').value,
+        country: document.getElementById('sbCustomerCountry').value,
+        customerType: document.getElementById('sbCustomerType').value,
+        annualRevenue: document.getElementById('sbCustomerAnnualRevenue').value,
+        employeeCount: document.getElementById('sbCustomerEmployeeCount').value,
+        status: document.getElementById('sbCustomerStatus').value,
+        accountManager: document.getElementById('sbCustomerAccountManager').value,
+        customerSince: document.getElementById('sbCustomerSince').value,
+        notes: document.getElementById('sbCustomerNotes').value
+      };
+      
+      const newCustomerId = Object.keys(mockData.customers).length + 1;
+      const initials = formData.companyName ? formData.companyName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'NA';
+      const value = formData.annualRevenue ? `₹${parseFloat(formData.annualRevenue).toFixed(1)}L` : '₹0';
+      
+      mockData.customers[newCustomerId] = {
+        name: formData.companyName,
+        contact: formData.contactPerson,
+        email: formData.email,
+        phone: formData.phone,
+        location: `${formData.city || ''}, ${formData.state || ''}`.replace(/^,\s*|\s*,/g, '').trim() || 'Unknown',
+        value: value,
+        initials: initials,
+        since: formData.customerSince || new Date().toISOString().split('T')[0],
+        status: formData.status || 'active',
+        industry: formData.industry || 'Unknown',
+        address: formData.address,
+        website: formData.website,
+        customerType: formData.customerType,
+        employeeCount: formData.employeeCount,
+        accountManager: formData.accountManager || 'Unassigned',
+        notes: formData.notes
+      };
+      
+      alert('Customer created successfully!');
+      showScreen('customers');
+      this.reset();
+    });
+  }
+
+  if (cancelCustomerBtn) {
+    cancelCustomerBtn.addEventListener('click', () => {
+      showScreen('dashboard');
+    });
+  }
+
+  // ========== VISIT FORM ==========
+  const visitForm = document.getElementById('salesbuddyVisitForm');
+  const cancelVisitBtn = document.getElementById('cancelVisitBtn');
+
+  if (visitForm) {
+    visitForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = {
+        customer: document.getElementById('sbVisitCustomer').value,
+        date: document.getElementById('sbVisitDate').value,
+        startTime: document.getElementById('sbVisitStartTime').value,
+        endTime: document.getElementById('sbVisitEndTime').value,
+        type: document.getElementById('sbVisitType').value,
+        priority: document.getElementById('sbVisitPriority').value,
+        location: document.getElementById('sbVisitLocation').value,
+        contactPerson: document.getElementById('sbVisitContactPerson').value,
+        contactPhone: document.getElementById('sbVisitContactPhone').value,
+        objective: document.getElementById('sbVisitObjective').value,
+        agenda: document.getElementById('sbVisitAgenda').value,
+        materials: document.getElementById('sbVisitMaterials').value,
+        travelMode: document.getElementById('sbVisitTravelMode').value,
+        travelTime: document.getElementById('sbVisitTravelTime').value,
+        expenses: document.getElementById('sbVisitExpenses').value,
+        accommodation: document.getElementById('sbVisitAccommodation').value,
+        followUpDate: document.getElementById('sbVisitFollowUpDate').value,
+        followUpAction: document.getElementById('sbVisitFollowUpAction').value,
+        assignedTo: document.getElementById('sbVisitAssignedTo').value
+      };
+      
+      const newVisitId = Object.keys(mockData.visits).length + 1;
+      const customerName = getCustomerNameById(formData.customer);
+      const duration = calculateDuration(formData.startTime, formData.endTime);
+      const title = `${customerName} ${formData.type || 'Meeting'}`;
+      
+      mockData.visits[newVisitId] = {
+        id: newVisitId,
+        title: title,
+        customer: customerName,
+        description: formData.objective ? (formData.objective.substring(0, 100) + '...') : 'No description',
+        date: formData.date,
+        time: `${formData.startTime || ''} - ${formData.endTime || ''}`,
+        duration: duration,
+        priority: formData.priority,
+        status: 'scheduled',
+        location: formData.location,
+        contactPerson: formData.contactPerson,
+        objective: formData.objective,
+        agenda: formData.agenda ? formData.agenda.split('\n').filter(item => item.trim()) : [],
+        materials: formData.materials,
+        travelMode: formData.travelMode,
+        travelTime: formData.travelTime,
+        expenses: formData.expenses ? `₹${formData.expenses}` : '₹0',
+        accommodation: formData.accommodation === 'yes' ? 'Required' : 'Not Required',
+        followUpDate: formData.followUpDate,
+        followUpAction: formData.followUpAction,
+        assignedTo: formData.assignedTo || 'Unassigned'
+      };
+      
+      alert('Visit scheduled successfully!');
+      showScreen('visits');
+      this.reset();
+      autoGenerateVisitDateTime();
+    });
+  }
+
+  if (cancelVisitBtn) {
+    cancelVisitBtn.addEventListener('click', () => {
+      showScreen('dashboard');
+    });
+  }
+
+  // ========== COMPLAINT FORM ==========
+  const complaintForm = document.getElementById('salesbuddyComplaintForm');
+  const cancelComplaintBtn = document.getElementById('cancelComplaintBtn');
+  const complaintFormUploadBtn = document.getElementById('complaintFormUploadBtn');
+  const complaintFormFileInput = document.getElementById('complaintFormFileInput');
+  const complaintFormUploadedFiles = document.getElementById('complaintFormUploadedFiles');
+
+  // Auto-fill contact information
+  function autoFillComplaintContactInfo() {
+    const complaintContactSelect = document.getElementById('sbComplaintContact');
+    const complaintEmailInput = document.getElementById('sbComplaintEmail');
+    const complaintPhoneInput = document.getElementById('sbComplaintPhone');
+    const complaintCompanyInput = document.getElementById('sbComplaintCompany');
+
+    if (complaintContactSelect) {
+      complaintContactSelect.addEventListener('change', function() {
+        const contactId = this.value;
+        
+        if (contactId && mockData.contacts && mockData.contacts[contactId]) {
+          const contact = mockData.contacts[contactId];
+          
+          if (complaintEmailInput) complaintEmailInput.value = contact.email || '';
+          if (complaintPhoneInput) complaintPhoneInput.value = contact.phone || '';
+          if (complaintCompanyInput) complaintCompanyInput.value = contact.company || '';
+        } else {
+          if (complaintEmailInput) complaintEmailInput.value = '';
+          if (complaintPhoneInput) complaintPhoneInput.value = '';
+          if (complaintCompanyInput) complaintCompanyInput.value = '';
+        }
+      });
+    }
+  }
+
+  // Upload functionality
+  if (complaintFormUploadBtn && complaintFormFileInput) {
+    complaintFormUploadBtn.addEventListener('click', () => {
+      complaintFormFileInput.click();
+    });
+
+    complaintFormFileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        addUploadedFile(file, complaintFormUploadedFiles);
+      });
+    });
+  }
+
+  // Form submission
+  if (complaintForm) {
+    complaintForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      // Get form data
+      const formData = {
+        contact: document.getElementById('sbComplaintContact').value,
+        type: document.getElementById('sbComplaintType').value,
+        description: document.getElementById('sbComplaintDescription').value,
+        priority: document.getElementById('sbComplaintPriority').value,
+        product: document.getElementById('sbComplaintProduct').value,
+        assignedTo: document.getElementById('sbComplaintAssignedTo').value,
+        email: document.getElementById('sbComplaintEmail').value,
+        phone: document.getElementById('sbComplaintPhone').value,
+        company: document.getElementById('sbComplaintCompany').value,
+        reference: document.getElementById('sbComplaintReference').value,
+        resolutionDate: document.getElementById('sbComplaintResolutionDate').value,
+        status: document.getElementById('sbComplaintStatus').value
+      };
+      
+      // Validate form
+      const validationErrors = validateComplaintForm(formData);
+      if (validationErrors.length > 0) {
+        alert(`Please fix the following errors:\n\n• ${validationErrors.join('\n• ')}`);
+        return;
+      }
+      
+      // Create new complaint
+      const newComplaintId = Object.keys(mockData.complaints).length + 1;
+      
+      // Get contact info
+      let contactName = 'Unknown Contact';
+      let customerCompany = formData.company || 'Unknown Company';
+      
+      if (mockData.contacts && mockData.contacts[formData.contact]) {
+        const contact = mockData.contacts[formData.contact];
+        contactName = contact.name;
+        customerCompany = contact.company || customerCompany;
+      }
+      
+      // Generate title
+      const typeTitles = {
+        'technical': 'Technical Issue',
+        'billing': 'Billing Issue',
+        'product': 'Product Quality Issue',
+        'service': 'Service Quality Issue',
+        'delivery': 'Delivery Issue',
+        'other': 'Customer Complaint'
+      };
+      
+      const title = `${typeTitles[formData.type] || 'Complaint'} - ${customerCompany}`;
+      
+      // Get product name
+      let productName = formData.product;
+      if (mockData.products && mockData.products[formData.product]) {
+        productName = mockData.products[formData.product];
+      }
+      
+      // Get assignee name
+      let assignedToName = formData.assignedTo;
+      if (mockData.assignees && mockData.assignees[formData.assignedTo]) {
+        assignedToName = mockData.assignees[formData.assignedTo];
+      }
+      
+      // Create complaint object
+      mockData.complaints[newComplaintId] = {
+        id: newComplaintId,
+        title: title,
+        customer: customerCompany,
+        contactPerson: contactName,
+        type: formData.type,
+        priority: formData.priority,
+        status: formData.status || 'pending',
+        description: formData.description,
+        product: productName,
+        assignedTo: assignedToName,
+        email: formData.email || '',
+        phone: formData.phone || '',
+        reference: formData.reference || '',
+        resolutionDate: formData.resolutionDate || '',
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      
+      // Show success message
+      showToast('Complaint submitted successfully!', 'success');
+
+      // Go to complaints screen
+      showScreen('complaints');
+
+      // Reset form
+      this.reset();
+      if (complaintFormUploadedFiles) complaintFormUploadedFiles.innerHTML = '';
+    });
+  }
+
+  if (cancelComplaintBtn) {
+    cancelComplaintBtn.addEventListener('click', () => {
+      showScreen('dashboard');
+    });
+  }
+
+  // Complaint form validation
+  function validateComplaintForm(formData) {
+    const errors = [];
+    
+    if (!formData.contact) {
+      errors.push('Contact person is required');
+    }
+    
+    if (!formData.type) {
+      errors.push('Complaint type is required');
+    }
+    
+    if (!formData.description || formData.description.trim().length < 10) {
+      errors.push('Description must be at least 10 characters');
+    }
+    
+    if (!formData.priority) {
+      errors.push('Priority is required');
+    }
+    
+    if (!formData.product) {
+      errors.push('Product is required');
+    }
+    
+    if (!formData.assignedTo) {
+      errors.push('Assigned to is required');
+    }
+    
+    if (formData.email && !isValidEmail(formData.email)) {
+      errors.push('Valid email address is required');
+    }
+    
+    return errors;
+  }
+
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  // Helper functions
+  function getCustomerNameById(customerId) {
+    if (!customerId) return 'Unknown Customer';
+    
+    const customer = Object.values(mockData.customers).find(c => 
+      c.id === customerId || c.name === customerId
+    );
+    
+    if (customer) return customer.name;
+    
+    const mapping = {
+      '1': 'Acme Corporation',
+      '2': 'Global Tech Solutions',
+      '3': 'Tech Innovations Inc',
+      'acme': 'Acme Corporation',
+      'global': 'Global Tech Solutions',
+      'tech': 'Tech Innovations Inc'
+    };
+    
+    return mapping[customerId.toLowerCase()] || 'Unknown Customer';
+  }
+
+  function calculateDuration(startTime, endTime) {
+    if (!startTime || !endTime) return 'N/A';
+    
+    try {
+      const start = new Date(`2000-01-01T${startTime}`);
+      const end = new Date(`2000-01-01T${endTime}`);
+      const diff = (end - start) / (1000 * 60);
+      
+      if (diff < 60) {
+        return `${diff} min`;
+      } else {
+        const hours = Math.floor(diff / 60);
+        const minutes = diff % 60;
+        return minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`;
+      }
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  function addUploadedFile(file, container) {
+    if (!container) return;
+    
+    const fileElement = document.createElement('div');
+    fileElement.className = 'uploaded-file-item';
+    
+    const fileIcon = getFileIcon(file.name);
+    const fileSize = formatFileSize(file.size);
+    
+    fileElement.innerHTML = `
+      <div class="file-icon">${fileIcon}</div>
+      <div class="file-info">
+        <p class="file-name">${file.name}</p>
+        <span class="file-size">${fileSize}</span>
+      </div>
+      <button class="remove-file-btn" type="button">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+    
+    const removeBtn = fileElement.querySelector('.remove-file-btn');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        fileElement.remove();
+      });
+    }
+    
+    container.appendChild(fileElement);
+  }
+
+  function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    switch(ext) {
+      case 'pdf':
+        return '<i class="fas fa-file-pdf"></i>';
+      case 'doc':
+      case 'docx':
+        return '<i class="fas fa-file-word"></i>';
+      case 'xls':
+      case 'xlsx':
+        return '<i class="fas fa-file-excel"></i>';
+      case 'ppt':
+      case 'pptx':
+        return '<i class="fas fa-file-powerpoint"></i>';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return '<i class="fas fa-file-image"></i>';
+      default:
+        return '<i class="fas fa-file"></i>';
+    }
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  function getRelatedLeadName(relatedTo) {
+    if (!relatedTo) return null;
+    
+    const mapping = {
+      'lead-1': 'John Smith - Tech Innovations',
+      'lead-2': 'Sarah Johnson - Digital Solutions',
+      'opp-1': 'Enterprise Software License',
+      'opp-2': 'Cloud Migration Project'
+    };
+    
+    return mapping[relatedTo] || null;
+  }
+
+  // ========== MOCK DATA ==========
+  const mockData = {
+    leads: {
+      '1': {
+        name: 'John Smith',
+        company: 'Tech Innovations Inc',
+        status: 'Hot',
+        contactNumber: '+91 98765 43210',
+        region: 'North India',
+        industry: 'Technology',
+        division: 'Enterprise Division',
+        product: 'Enterprise Suite',
+        brand: 'TechBrand',
+        assignedTo: 'Rahul Kumar',
+        lastContact: '2024-03-15',
+        tags: ['Enterprise', 'Q1 Priority', 'Decision Maker'],
+        initials: 'JS',
+        agency: 'Digital Marketing Agency',
+        clientContact: 'john@techinnovations.com',
+        clientProduct: 'CRM Software',
+        rollingMonth: 'March 2024',
+        source: 'Website',
+        subDivision: 'Enterprise Sales'
+      },
+      '2': {
+        name: 'Sarah Johnson',
+        company: 'Digital Solutions',
+        status: 'Warm',
+        contactNumber: '+91 98765 43211',
+        region: 'West India',
+        industry: 'Digital Services',
+        division: 'Digital Division',
+        product: 'Marketing Suite',
+        brand: 'DigitalBrand',
+        assignedTo: 'Priya Sharma',
+        lastContact: '2024-03-14',
+        tags: ['SMB', 'Marketing'],
+        initials: 'SJ',
+        agency: 'Web Solutions Agency',
+        clientContact: 'sarah@digitalsolutions.com',
+        clientProduct: 'E-commerce Platform',
+        rollingMonth: 'March 2024',
+        source: 'Referral',
+        subDivision: 'Digital Marketing'
+      }
+    },
+    tasks: {
+      '1': {
+        title: 'Follow up with ABC Corp',
+        description: 'Call John Smith to discuss the enterprise license proposal.',
+        priority: 'High',
+        time: '10:00 AM',
+        assignedTo: 'Rahul Kumar',
+        dueDate: '2024-03-18',
+        relatedLead: 'John Smith - Tech Innovations'
+      },
+      '2': {
+        title: 'Prepare proposal for XYZ Ltd',
+        description: 'Create comprehensive proposal including pricing, timeline, and implementation plan.',
+        priority: 'Medium',
+        time: '11:30 AM',
+        assignedTo: 'Priya Sharma',
+        dueDate: '2024-03-19',
+        relatedLead: 'Sarah Johnson - Digital Solutions'
+      }
+    },
+    opportunities: {
+      '1': {
+        title: 'Enterprise Software License',
+        company: 'ABC Corporation',
+        stage: 'Negotiation',
+        value: '₹12.5L',
+        probability: 80,
+        expectedClose: '2024-04-15',
+        owner: 'Rahul Kumar',
+        description: 'Full enterprise license for 500 users including premium support and training.',
+        division: 'Enterprise Division',
+        region: 'North India',
+        product: 'Enterprise Suite',
+        brand: 'TechBrand',
+        industry: 'Technology',
+        agency: 'Digital Solutions Agency',
+        clientContact: 'james@abccorp.com',
+        clientProduct: 'Business Software',
+        rollingMonth: 'April 2024',
+        source: 'Referral',
+        subDivision: 'Enterprise Sales'
+      },
+      '2': {
+        title: 'Cloud Migration Project',
+        company: 'XYZ Ltd',
+        stage: 'Proposal',
+        value: '₹8.3L',
+        probability: 60,
+        expectedClose: '2024-04-30',
+        owner: 'Priya Sharma',
+        description: 'Complete cloud migration and infrastructure setup.',
+        division: 'Cloud Division',
+        region: 'South India',
+        product: 'Cloud Services',
+        brand: 'CloudBrand',
+        industry: 'Technology',
+        agency: 'IT Solutions Agency',
+        clientContact: 'mike@xyz.com',
+        clientProduct: 'Infrastructure Services',
+        rollingMonth: 'April 2024',
+        source: 'Website',
+        subDivision: 'Cloud Solutions'
+      }
+    },
+    proposals: {
+      '1': {
+        title: 'Q1 Marketing Campaign',
+        company: 'Brand Masters',
+        status: 'pending',
+        value: '₹9.5L',
+        validUntil: '2024-04-01',
+        owner: 'Rahul Kumar',
+        description: 'Comprehensive digital marketing campaign including SEO, PPC, and social media management for Q1 2024.'
+      },
+      '2': {
+        title: 'Website Redesign',
+        company: 'Digital First',
+        status: 'approved',
+        value: '₹7.2L',
+        validUntil: '2024-04-15',
+        owner: 'Priya Sharma',
+        description: 'Complete website redesign with modern UI/UX and responsive design.'
+      }
+    },
+    customers: {
+      '1': {
+        name: 'Acme Corporation',
+        contact: 'James Wilson',
+        email: 'james@acme.com',
+        phone: '+91 98765 43210',
+        location: 'Mumbai',
+        value: '₹45.2L',
+        initials: 'AC',
+        since: 'Jan 2022',
+        status: 'active'
+      },
+      '2': {
+        name: 'Global Tech Solutions',
+        contact: 'Lisa Anderson',
+        email: 'lisa@globaltech.com',
+        phone: '+91 98765 43211',
+        location: 'Bangalore',
+        value: '₹38.5L',
+        initials: 'GT',
+        since: 'Mar 2021',
+        status: 'active'
+      },
+      '3': {
+        name: 'Tech Innovations Inc',
+        contact: 'John Smith',
+        email: 'john@techinnovations.com',
+        phone: '+91 98765 43212',
+        location: 'Delhi',
+        value: '₹25.7L',
+        initials: 'TI',
+        since: 'Feb 2023',
+        status: 'active'
+      }
+    },
+    complaints: {
+      '1': {
+        title: 'Software Login Issues',
+        customer: 'Acme Corporation',
+        type: 'Technical',
+        priority: 'high',
+        status: 'investigating',
+        createdAt: '2024-03-15',
+        assignedTo: 'Tech Support',
+        description: 'Multiple users at Acme Corporation are unable to access the system. Getting "Invalid credentials" error.',
+        contactPerson: 'John Manager',
+        contactEmail: 'john@acme.com',
+        contactPhone: '+91 98765 43210'
+      },
+      '2': {
+        title: 'Invoice Discrepancy',
+        customer: 'Global Tech Solutions',
+        type: 'Billing',
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2024-03-14',
+        assignedTo: 'Finance Team',
+        description: 'Billing amount doesn\'t match the signed agreement.',
+        contactPerson: 'Lisa Anderson',
+        contactEmail: 'lisa@globaltech.com',
+        contactPhone: '+91 98765 43211'
+      }
+    },
+    visits: {
+      '1': {
+        id: 1,
+        title: 'Quarterly Business Review',
+        customer: 'Acme Corporation',
+        description: 'Discuss Q1 performance and Q2 roadmap',
+        date: '2024-03-18',
+        time: '10:00 AM - 11:30 AM',
+        duration: '1.5 hours',
+        priority: 'high',
+        status: 'scheduled',
+        location: '123 Business St, Mumbai',
+        contactPerson: 'James Wilson',
+        objective: 'Discuss Q1 performance metrics and plan Q2 strategic initiatives.',
+        agenda: ['Review Q1 performance metrics (30 mins)', 'Discuss customer feedback (20 mins)', 'Q2 roadmap presentation (30 mins)', 'Identify upsell opportunities (10 mins)'],
+        materials: 'Laptop, presentation slides, sample reports, proposal documents.',
+        travelMode: 'Car',
+        travelTime: '2 hours',
+        expenses: '₹1,500',
+        accommodation: 'Not Required',
+        followUpDate: '2024-03-25',
+        followUpAction: 'Send Proposal',
+        assignedTo: 'Rahul Kumar'
+      }
+    },
+    contacts: {
+      'john-smith': {
+        name: 'John Smith',
+        company: 'Tech Innovations Inc',
+        email: 'john@techinnovations.com',
+        phone: '+91 98765 43210'
+      },
+      'sarah-johnson': {
+        name: 'Sarah Johnson',
+        company: 'Digital Solutions',
+        email: 'sarah@digitalsolutions.com',
+        phone: '+91 98765 43211'
+      },
+      'james-wilson': {
+        name: 'James Wilson',
+        company: 'Acme Corporation',
+        email: 'james@acme.com',
+        phone: '+91 98765 43212'
+      },
+      'lisa-anderson': {
+        name: 'Lisa Anderson',
+        company: 'Global Tech Solutions',
+        email: 'lisa@globaltech.com',
+        phone: '+91 98765 43213'
+      },
+      'mike-chen': {
+        name: 'Mike Chen',
+        company: 'Tech Solutions Ltd',
+        email: 'mike@techsolutions.com',
+        phone: '+91 98765 43214'
+      }
+    },
+    products: {
+      'enterprise-suite': 'Enterprise Suite',
+      'cloud-services': 'Cloud Services',
+      'marketing-suite': 'Marketing Suite',
+      'crm-software': 'CRM Software',
+      'business-software': 'Business Software',
+      'ecommerce-platform': 'E-commerce Platform'
+    },
+    assignees: {
+      'tech-support': 'Tech Support Team',
+      'finance-team': 'Finance Team',
+      'customer-service': 'Customer Service',
+      'product-team': 'Product Team',
+      'rahul-kumar': 'Rahul Kumar',
+      'priya-sharma': 'Priya Sharma',
+      'amit-patel': 'Amit Patel'
+    },
+    complaintTypes: {
+      'technical': 'Technical Issue',
+      'billing': 'Billing/Invoice',
+      'product': 'Product Quality',
+      'service': 'Service Quality',
+      'delivery': 'Delivery Issue',
+      'other': 'Other'
+    },
+    insights: [
+      {
+        id: 1,
+        type: "opportunity",
+        title: "Upsell Opportunity Detected",
+        description: "ABC Corp's usage has increased 40%. Consider proposing premium tier upgrade.",
+        impact: "high"
+      }
+    ],
+    plannerEvents: [
+      {
+        id: 1,
+        title: "Discovery Call with ABC Corp",
+        type: "call",
+        time: "09:00 AM",
+        duration: "30 min",
+        attendees: ["John Smith"]
+      }
+    ]
+  };
 
   // ========== DETAIL PAGE NAVIGATION ==========
   // Lead Cards
@@ -318,221 +1763,40 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ========== MOCK DATA ==========
-  const mockData = {
-    leads: {
-      '1': {
-        name: 'John Smith',
-        company: 'Tech Innovations Inc',
-        status: 'Hot',
-        value: '₹5.2L',
-        region: 'North India',
-        industry: 'Technology',
-        assignedTo: 'Rahul Kumar',
-        lastContact: '2024-03-15',
-        tags: ['Enterprise', 'Q1 Priority', 'Decision Maker'],
-        initials: 'JS'
-      },
-      '2': {
-        name: 'Sarah Johnson',
-        company: 'Digital Solutions',
-        status: 'Warm',
-        value: '₹3.8L',
-        region: 'West India',
-        industry: 'Digital Services',
-        assignedTo: 'Priya Sharma',
-        lastContact: '2024-03-14',
-        tags: ['SMB', 'Marketing'],
-        initials: 'SJ'
+  // Visit Cards
+  document.querySelectorAll('.visit-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+      if (!e.target.closest('.icon-btn')) {
+        const visitId = this.getAttribute('data-visit-id') || '1';
+        loadVisitDetail(visitId);
+        showScreen('visitDetail');
       }
-    },
-    tasks: {
-      '1': {
-        title: 'Follow up with ABC Corp',
-        description: 'Call John Smith to discuss the enterprise license proposal. Make sure to address their concerns about pricing and implementation timeline.',
-        priority: 'High',
-        time: '10:00 AM',
-        assignedTo: 'Rahul Kumar',
-        dueDate: '2024-03-18',
-        relatedLead: 'John Smith - Tech Innovations'
-      },
-      '2': {
-        title: 'Prepare proposal for XYZ Ltd',
-        description: 'Create comprehensive proposal including pricing, timeline, and implementation plan.',
-        priority: 'Medium',
-        time: '11:30 AM',
-        assignedTo: 'Priya Sharma',
-        dueDate: '2024-03-19',
-        relatedLead: 'Sarah Johnson - Digital Solutions'
-      }
-    },
-    opportunities: {
-      '1': {
-        title: 'Enterprise Software License',
-        company: 'ABC Corporation',
-        stage: 'Negotiation',
-        value: '₹12.5L',
-        probability: 80,
-        expectedClose: '2024-04-15',
-        owner: 'Rahul Kumar',
-        description: 'Full enterprise license for 500 users including premium support and training.'
-      },
-      '2': {
-        title: 'Cloud Migration Project',
-        company: 'XYZ Ltd',
-        stage: 'Proposal',
-        value: '₹8.3L',
-        probability: 60,
-        expectedClose: '2024-04-30',
-        owner: 'Priya Sharma',
-        description: 'Complete cloud migration and infrastructure setup.'
-      }
-    },
-    proposals: {
-      '1': {
-        title: 'Q1 Marketing Campaign',
-        company: 'Brand Masters',
-        status: 'pending',
-        value: '₹9.5L',
-        validUntil: '2024-04-01',
-        owner: 'Rahul Kumar',
-        description: 'Comprehensive digital marketing campaign including SEO, PPC, and social media management for Q1 2024.'
-      },
-      '2': {
-        title: 'Website Redesign',
-        company: 'Digital First',
-        status: 'approved',
-        value: '₹7.2L',
-        validUntil: '2024-04-15',
-        owner: 'Priya Sharma',
-        description: 'Complete website redesign with modern UI/UX and responsive design.'
-      }
-    },
-    customers: {
-      '1': {
-        name: 'Acme Corporation',
-        contact: 'James Wilson',
-        email: 'james@acme.com',
-        phone: '+91 98765 43210',
-        location: 'Mumbai',
-        value: '₹45.2L',
-        initials: 'AC',
-        since: 'Jan 2022',
-        status: 'active'
-      },
-      '2': {
-        name: 'Global Tech Solutions',
-        contact: 'Lisa Anderson',
-        email: 'lisa@globaltech.com',
-        phone: '+91 98765 43211',
-        location: 'Bangalore',
-        value: '₹38.5L',
-        initials: 'GT',
-        since: 'Mar 2021',
-        status: 'active'
-      }
-    },
-    complaints: {
-      '1': {
-        title: 'Software Login Issues',
-        customer: 'Acme Corporation',
-        type: 'Technical',
-        priority: 'high',
-        status: 'investigating',
-        createdAt: '2024-03-15',
-        assignedTo: 'Tech Support',
-        description: 'Multiple users at Acme Corporation are unable to access the system. Getting "Invalid credentials" error.',
-        contactPerson: 'John Manager',
-        contactEmail: 'john@acme.com',
-        contactPhone: '+91 98765 43210'
-      },
-      '2': {
-        title: 'Invoice Discrepancy',
-        customer: 'Global Tech Solutions',
-        type: 'Billing',
-        priority: 'medium',
-        status: 'pending',
-        createdAt: '2024-03-14',
-        assignedTo: 'Finance Team',
-        description: 'Billing amount doesn\'t match the signed agreement.',
-        contactPerson: 'Lisa Anderson',
-        contactEmail: 'lisa@globaltech.com',
-        contactPhone: '+91 98765 43211'
-      }
-    },
-    insights: [
-      {
-        id: 1,
-        type: "opportunity",
-        title: "Upsell Opportunity Detected",
-        description: "ABC Corp's usage has increased 40%. Consider proposing premium tier upgrade.",
-        impact: "high"
-      },
-      {
-        id: 2,
-        type: "action",
-        title: "Follow-up Recommended",
-        description: "3 leads haven't been contacted in 7 days. Schedule follow-up calls.",
-        impact: "high"
-      },
-      {
-        id: 3,
-        type: "trend",
-        title: "Sales Trend Alert",
-        description: "Q1 sales up by 25% compared to last year. Great work!",
-        impact: "medium"
-      },
-      {
-        id: 4,
-        type: "warning",
-        title: "Customer Satisfaction Drop",
-        description: "Customer satisfaction decreased by 10% this month. Review recent complaints.",
-        impact: "high"
-      }
-    ],
-    plannerEvents: [
-      {
-        id: 1,
-        title: "Discovery Call with ABC Corp",
-        type: "call",
-        time: "09:00 AM",
-        duration: "30 min",
-        attendees: ["John Smith"]
-      },
-      {
-        id: 2,
-        title: "Product Demo - XYZ Ltd",
-        type: "video",
-        time: "10:30 AM",
-        duration: "1 hour",
-        attendees: ["Sarah Johnson", "Mike Chen"]
-      },
-      {
-        id: 3,
-        title: "Team Meeting",
-        type: "meeting",
-        time: "02:00 PM",
-        duration: "1 hour",
-        attendees: ["Sales Team"]
-      }
-    ]
-  };
+    });
+  });
 
   // ========== DETAIL PAGE LOADERS ==========
   function loadLeadDetail(leadId) {
     const data = mockData.leads[leadId] || mockData.leads['1'];
     
-    // Update UI elements
     const nameEl = document.getElementById('leadDetailName');
     const companyEl = document.getElementById('leadDetailCompany');
     const statusEl = document.getElementById('leadDetailStatus');
-    const valueEl = document.getElementById('leadDetailValue');
+    const leadNameEl = document.getElementById('leadDetailLeadName');
+    const clientEl = document.getElementById('leadDetailClient');
+    const contactEl = document.getElementById('leadDetailContactNumber');
     const regionEl = document.getElementById('leadDetailRegion');
     const industryEl = document.getElementById('leadDetailIndustry');
     const assignedEl = document.getElementById('leadDetailAssignedTo');
-    const contactEl = document.getElementById('leadDetailLastContact');
+    const divisionEl = document.getElementById('leadDetailDivision');
+    const productEl = document.getElementById('leadDetailProduct');
+    const brandEl = document.getElementById('leadDetailBrand');
     const avatarEl = document.getElementById('leadDetailAvatar');
-    const tagsEl = document.getElementById('leadDetailTags');
+    const agencyEl = document.getElementById('leadDetailAgency');
+    const clientContactEl = document.getElementById('leadDetailClientContact');
+    const clientProductEl = document.getElementById('leadDetailClientProduct');
+    const rollingMonthEl = document.getElementById('leadDetailRollingMonth');
+    const sourceEl = document.getElementById('leadDetailSource');
+    const subDivisionEl = document.getElementById('leadDetailSubDivision');
     
     if (nameEl) nameEl.textContent = data.name;
     if (companyEl) companyEl.textContent = data.company;
@@ -540,23 +1804,71 @@ document.addEventListener("DOMContentLoaded", () => {
       statusEl.textContent = data.status;
       statusEl.className = `lead-badge ${data.status.toLowerCase()}`;
     }
-    if (valueEl) valueEl.textContent = data.value;
+    if (leadNameEl) leadNameEl.textContent = data.name;
+    if (clientEl) clientEl.textContent = data.company;
+    if (contactEl) contactEl.textContent = data.contactNumber;
     if (regionEl) regionEl.textContent = data.region;
     if (industryEl) industryEl.textContent = data.industry;
     if (assignedEl) assignedEl.textContent = data.assignedTo;
-    if (contactEl) contactEl.textContent = data.lastContact;
+    if (divisionEl) divisionEl.textContent = data.division;
+    if (productEl) productEl.textContent = data.product;
+    if (brandEl) brandEl.textContent = data.brand;
     if (avatarEl) avatarEl.textContent = data.initials;
+    if (agencyEl) agencyEl.textContent = data.agency;
+    if (clientContactEl) clientContactEl.textContent = data.clientContact;
+    if (clientProductEl) clientProductEl.textContent = data.clientProduct;
+    if (rollingMonthEl) rollingMonthEl.textContent = data.rollingMonth;
+    if (sourceEl) sourceEl.textContent = data.source;
+    if (subDivisionEl) subDivisionEl.textContent = data.subDivision;
+  }
+
+  function loadOpportunityDetail(opportunityId) {
+    const data = mockData.opportunities[opportunityId] || mockData.opportunities['1'];
     
-    // Update tags
-    if (tagsEl && data.tags) {
-      tagsEl.innerHTML = '';
-      data.tags.forEach(tag => {
-        const tagElement = document.createElement('span');
-        tagElement.className = 'tag';
-        tagElement.textContent = tag;
-        tagsEl.appendChild(tagElement);
-      });
+    const titleEl = document.getElementById('opportunityDetailTitle');
+    const companyEl = document.getElementById('opportunityDetailCompany');
+    const stageEl = document.getElementById('opportunityDetailStage');
+    const valueEl = document.getElementById('opportunityDetailValue');
+    const probEl = document.getElementById('opportunityDetailProbability');
+    const ownerEl = document.getElementById('opportunityDetailOwner');
+    const descEl = document.getElementById('opportunityDetailDescription');
+    const progressEl = document.getElementById('opportunityProgressBar');
+    const revenueEl = document.getElementById('opportunityDetailExpectedRevenue');
+    const divisionEl = document.getElementById('opportunityDetailDivision');
+    const regionEl = document.getElementById('opportunityDetailRegion');
+    const productEl = document.getElementById('opportunityDetailProduct');
+    const brandEl = document.getElementById('opportunityDetailBrand');
+    const industryEl = document.getElementById('opportunityDetailIndustry');
+    const agencyEl = document.getElementById('opportunityDetailAgency');
+    const clientContactEl = document.getElementById('opportunityDetailClientContact');
+    const clientProductEl = document.getElementById('opportunityDetailClientProduct');
+    const rollingMonthEl = document.getElementById('opportunityDetailRollingMonth');
+    const sourceEl = document.getElementById('opportunityDetailSource');
+    const subDivisionEl = document.getElementById('opportunityDetailSubDivision');
+    
+    if (titleEl) titleEl.textContent = data.title;
+    if (companyEl) companyEl.textContent = data.company;
+    if (stageEl) {
+      stageEl.textContent = data.stage;
+      stageEl.className = `opportunity-badge ${data.stage.toLowerCase().replace(' ', '-')}`;
     }
+    if (valueEl) valueEl.textContent = data.value;
+    if (probEl) probEl.textContent = `${data.probability}%`;
+    if (ownerEl) ownerEl.textContent = data.owner;
+    if (descEl) descEl.textContent = data.description;
+    if (progressEl) progressEl.style.width = `${data.probability}%`;
+    if (revenueEl) revenueEl.innerHTML = `Expected Revenue: <strong>${data.value}</strong>`;
+    if (divisionEl) divisionEl.textContent = data.division;
+    if (regionEl) regionEl.textContent = data.region;
+    if (productEl) productEl.textContent = data.product;
+    if (brandEl) brandEl.textContent = data.brand;
+    if (industryEl) industryEl.textContent = data.industry;
+    if (agencyEl) agencyEl.textContent = data.agency;
+    if (clientContactEl) clientContactEl.textContent = data.clientContact;
+    if (clientProductEl) clientProductEl.textContent = data.clientProduct;
+    if (rollingMonthEl) rollingMonthEl.textContent = data.rollingMonth;
+    if (sourceEl) sourceEl.textContent = data.source;
+    if (subDivisionEl) subDivisionEl.textContent = data.subDivision;
   }
 
   function loadTaskDetail(taskId) {
@@ -584,37 +1896,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (relatedEl) relatedEl.textContent = data.relatedLead;
   }
 
-  function loadOpportunityDetail(opportunityId) {
-    const data = mockData.opportunities[opportunityId] || mockData.opportunities['1'];
-    
-    const titleEl = document.getElementById('opportunityDetailTitle');
-    const companyEl = document.getElementById('opportunityDetailCompany');
-    const stageEl = document.getElementById('opportunityDetailStage');
-    const valueEl = document.getElementById('opportunityDetailValue');
-    const probEl = document.getElementById('opportunityDetailProbability');
-    const closeEl = document.getElementById('opportunityDetailExpectedClose');
-    const ownerEl = document.getElementById('opportunityDetailOwner');
-    const descEl = document.getElementById('opportunityDetailDescription');
-    const progressEl = document.getElementById('opportunityProgressBar');
-    
-    if (titleEl) titleEl.textContent = data.title;
-    if (companyEl) companyEl.textContent = data.company;
-    if (stageEl) {
-      stageEl.textContent = data.stage;
-      stageEl.className = `opportunity-badge ${data.stage.toLowerCase().replace(' ', '-')}`;
-    }
-    if (valueEl) valueEl.textContent = data.value;
-    if (probEl) {
-      probEl.textContent = `${data.probability}%`;
-    }
-    if (closeEl) closeEl.textContent = data.expectedClose;
-    if (ownerEl) ownerEl.textContent = data.owner;
-    if (descEl) descEl.textContent = data.description;
-    if (progressEl) {
-      progressEl.style.width = `${data.probability}%`;
-    }
-  }
-
   function loadProposalDetail(proposalId) {
     const data = mockData.proposals[proposalId] || mockData.proposals['1'];
     
@@ -622,9 +1903,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const companyEl = document.getElementById('proposalDetailCompany');
     const statusEl = document.getElementById('proposalDetailStatus');
     const valueEl = document.getElementById('proposalDetailValue');
-    const validEl = document.getElementById('proposalDetailValidUntil');
+    const probEl = document.getElementById('proposalDetailProbability');
+    const clientEl = document.getElementById('proposalDetailClient');
+    const agencyEl = document.getElementById('proposalDetailAgency');
     const ownerEl = document.getElementById('proposalDetailOwner');
     const descEl = document.getElementById('proposalDetailDescription');
+    const divisionEl = document.getElementById('proposalDetailDivision');
+    const regionEl = document.getElementById('proposalDetailRegion');
+    const productEl = document.getElementById('proposalDetailProduct');
+    const brandEl = document.getElementById('proposalDetailBrand');
+    const industryEl = document.getElementById('proposalDetailIndustry');
+    const clientContactEl = document.getElementById('proposalDetailClientContact');
+    const clientProductEl = document.getElementById('proposalDetailClientProduct');
+    const rollingMonthEl = document.getElementById('proposalDetailRollingMonth');
+    const sourceEl = document.getElementById('proposalDetailSource');
+    const subDivisionEl = document.getElementById('proposalDetailSubDivision');
+    const progressEl = document.getElementById('proposalProgressBar');
     
     if (titleEl) titleEl.textContent = data.title;
     if (companyEl) companyEl.textContent = data.company;
@@ -633,9 +1927,22 @@ document.addEventListener("DOMContentLoaded", () => {
       statusEl.className = `proposal-badge ${data.status}`;
     }
     if (valueEl) valueEl.textContent = data.value;
-    if (validEl) validEl.textContent = data.validUntil;
+    if (probEl) probEl.textContent = `${data.probability || '75'}% probability`;
+    if (clientEl) clientEl.textContent = data.client || data.company;
+    if (agencyEl) agencyEl.textContent = data.agency || 'No agency';
     if (ownerEl) ownerEl.textContent = data.owner;
     if (descEl) descEl.textContent = data.description;
+    if (divisionEl) divisionEl.textContent = data.division || 'Not specified';
+    if (regionEl) regionEl.textContent = data.region || 'Not specified';
+    if (productEl) productEl.textContent = data.product || 'Not specified';
+    if (brandEl) brandEl.textContent = data.brand || 'Not specified';
+    if (industryEl) industryEl.textContent = data.industry || 'Not specified';
+    if (clientContactEl) clientContactEl.textContent = data.clientContact || 'Not specified';
+    if (clientProductEl) clientProductEl.textContent = data.clientProduct || 'Not specified';
+    if (rollingMonthEl) rollingMonthEl.textContent = data.rollingMonth || 'Not specified';
+    if (sourceEl) sourceEl.textContent = data.source || 'Not specified';
+    if (subDivisionEl) subDivisionEl.textContent = data.subDivision || 'Not specified';
+    if (progressEl) progressEl.style.width = `${data.probability || 75}%`;
   }
 
   function loadCustomerDetail(customerId) {
@@ -699,256 +2006,139 @@ document.addEventListener("DOMContentLoaded", () => {
     if (contactPhoneEl) contactPhoneEl.textContent = data.contactPhone;
   }
 
-  // ========== FORM HANDLING ==========
-  // Lead Form Submission
-  const leadForm = document.getElementById('salesbuddyLeadForm');
-  if (leadForm) {
-    leadForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // Get form data
-      const formData = {
-        name: document.getElementById('sbLeadName').value,
-        description: document.getElementById('sbLeadDescription').value,
-        mmProducts: document.getElementById('sbMmProducts').value,
-        tag: document.getElementById('sbLeadTag').value,
-        assignTo: document.getElementById('sbAssignTo').value,
-        client: document.getElementById('sbClient').value,
-        clientProduct: document.getElementById('sbClientProduct').value,
-        brand: document.getElementById('sbBrand').value,
-        industry: document.getElementById('sbIndustry').value,
-        organization: document.getElementById('sbOrganizationAgency').value,
-        primaryContact: document.querySelector('input[name="sbPrimaryContact"]:checked')?.value,
-        orgContact: document.getElementById('sbOrgAgencyContact').value,
-        clientContact: document.getElementById('sbClientContact').value,
-        rollingMonth: document.getElementById('sbRollingMonth').value,
-        source: document.getElementById('sbSource').value,
-        mmDivision: document.getElementById('sbMmDivision').value,
-        subDivision: document.getElementById('sbSubDivision').value,
-        region: document.getElementById('sbRegion').value,
-        status: document.getElementById('sbLeadStatus').value,
-        notification: document.getElementById('sbSendNotification').value,
-        location: document.getElementById('sbLeadCoords').value
-      };
-      
-      console.log('Lead Form Submitted:', formData);
-      
-      // Create a new lead object
-      const newLeadId = Object.keys(mockData.leads).length + 1;
-      const initials = formData.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-      
-      mockData.leads[newLeadId] = {
-        name: formData.name,
-        company: formData.client || 'Unknown Company',
-        status: formData.status || 'New',
-        value: '₹0',
-        region: formData.region || 'Unknown',
-        industry: formData.industry || 'Unknown',
-        assignedTo: formData.assignTo || 'Unassigned',
-        lastContact: new Date().toISOString().split('T')[0],
-        tags: formData.tag ? [formData.tag] : [],
-        initials: initials || 'NA'
-      };
-      
-      alert('Lead created successfully!');
-      showScreen('leads');
-      
-      // Reset form
-      this.reset();
-    });
-  }
-
-  // Opportunity Form Submission
-  const opportunityForm = document.getElementById('salesbuddyOpportunityForm');
-  if (opportunityForm) {
-    opportunityForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // Get form data
-      const formData = {
-        name: document.getElementById('sbOpportunityName').value,
-        relatedLead: document.getElementById('sbRelatedLead').value,
-        expectedValue: document.getElementById('sbExpectedValue').value,
-        probability: document.getElementById('sbProbability').value,
-        stage: document.getElementById('sbOpportunityStage').value,
-        closeDate: document.getElementById('sbCloseDate').value,
-        description: document.getElementById('sbOpportunityDescription').value,
-        products: document.getElementById('sbOpportunityProducts').value,
-        competitors: document.getElementById('sbCompetitors').value,
-        nextSteps: document.getElementById('sbNextSteps').value,
-        client: document.getElementById('sbOpportunityClient').value,
-        brand: document.getElementById('sbOpportunityBrand').value,
-        industry: document.getElementById('sbOpportunityIndustry').value,
-        source: document.getElementById('sbOpportunitySource').value,
-        assignTo: document.getElementById('sbOpportunityAssignTo').value,
-        location: document.getElementById('sbOpportunityCoords').value
-      };
-      
-      console.log('Opportunity Form Submitted:', formData);
-      
-      // Create a new opportunity object
-      const newOppId = Object.keys(mockData.opportunities).length + 1;
-      const value = formData.expectedValue ? `₹${parseFloat(formData.expectedValue).toFixed(1)}L` : '₹0';
-      
-      mockData.opportunities[newOppId] = {
-        title: formData.name,
-        company: formData.client || 'Unknown Company',
-        stage: formData.stage || 'Qualification',
-        value: value,
-        probability: parseInt(formData.probability) || 10,
-        expectedClose: formData.closeDate || new Date().toISOString().split('T')[0],
-        owner: formData.assignTo || 'Unassigned',
-        description: formData.description || 'No description provided.'
-      };
-      
-      alert('Opportunity created successfully!');
-      showScreen('opportunities');
-      
-      // Reset form
-      this.reset();
-    });
-  }
-
-  // ========== FORM VOICE RECORDER ==========
-  // Lead Form Voice Recorder
-  const startRecordBtn = document.getElementById('sbStartRecord');
-  const recordingState = document.getElementById('sbRecordingState');
-  const readyState = document.getElementById('sbReadyState');
-  const playbackState = document.getElementById('sbPlaybackState');
-  const cancelRecordBtn = document.getElementById('sbCancelRecord');
-  const sendRecordBtn = document.getElementById('sbSendRecord');
-  const deleteRecordingBtn = document.getElementById('sbDeleteRecording');
-  const recordingTimer = document.getElementById('sbRecordingTimer');
-  const audioPlayback = document.getElementById('sbAudioPlayback');
-
-  if (startRecordBtn) {
-    let recordingInterval;
-    let seconds = 0;
+  function loadVisitDetail(visitId) {
+    currentVisitId = visitId;
+    const data = mockData.visits[visitId] || mockData.visits['1'];
     
-    startRecordBtn.addEventListener('click', () => {
-      // Show recording state
-      readyState.style.display = 'none';
-      recordingState.style.display = 'block';
-      
-      // Start timer
-      seconds = 0;
-      updateTimer();
-      recordingInterval = setInterval(() => {
-        seconds++;
-        updateTimer();
-      }, 1000);
-    });
+    const titleEl = document.getElementById('visitDetailTitle');
+    const customerEl = document.getElementById('visitDetailCustomer');
+    const typeEl = document.getElementById('visitDetailType');
+    const priorityEl = document.getElementById('visitDetailPriority');
+    const statusEl = document.getElementById('visitDetailStatus');
+    const dateEl = document.getElementById('visitDetailDate');
+    const timeEl = document.getElementById('visitDetailTime');
+    const locationEl = document.getElementById('visitDetailLocation');
+    const contactPersonEl = document.getElementById('visitDetailContactPerson');
+    const contactPhoneEl = document.getElementById('visitDetailContactPhone');
+    const assignedEl = document.getElementById('visitDetailAssignedTo');
+    const objectiveEl = document.getElementById('visitDetailObjective');
+    const agendaEl = document.getElementById('visitDetailAgenda');
+    const materialsEl = document.getElementById('visitDetailMaterials');
+    const travelModeEl = document.getElementById('visitDetailTravelMode');
+    const travelTimeEl = document.getElementById('visitDetailTravelTime');
+    const expensesEl = document.getElementById('visitDetailExpenses');
+    const accommodationEl = document.getElementById('visitDetailAccommodation');
+    const followUpDateEl = document.getElementById('visitDetailFollowUpDate');
+    const followUpActionEl = document.getElementById('visitDetailFollowUpAction');
+    const descriptionEl = document.getElementById('visitDetailDescription');
     
-    function updateTimer() {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      if (recordingTimer) {
-        recordingTimer.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      }
+    if (titleEl) titleEl.textContent = data.title;
+    if (customerEl) customerEl.textContent = data.customer;
+    if (typeEl) {
+      const typeMapping = {
+        'business-review': 'Business Review',
+        'product-demo': 'Product Demo',
+        'contract-renewal': 'Contract Meeting',
+        'sales-meeting': 'Sales Meeting',
+        'support-visit': 'Support Visit'
+      };
+      typeEl.textContent = typeMapping[data.type] || data.title.includes('Review') ? 'Business Review' : 
+                          data.title.includes('Demo') ? 'Product Demo' : 
+                          data.title.includes('Contract') ? 'Contract Meeting' : 'Sales Meeting';
     }
+    if (priorityEl) {
+      priorityEl.textContent = data.priority;
+      priorityEl.className = `visit-priority-badge ${data.priority}`;
+    }
+    if (statusEl) {
+      statusEl.textContent = data.status;
+      statusEl.className = `visit-status-badge ${data.status.replace('-', '')}`;
+    }
+    if (dateEl) dateEl.textContent = data.date;
+    if (timeEl) timeEl.textContent = data.time;
+    if (locationEl) locationEl.textContent = data.location;
+    if (contactPersonEl) contactPersonEl.textContent = data.contactPerson;
+    if (contactPhoneEl) contactPhoneEl.textContent = data.contactPhone || 'Not provided';
+    if (assignedEl) assignedEl.textContent = data.assignedTo;
+    if (objectiveEl) objectiveEl.textContent = data.objective || data.description;
+    if (descriptionEl) descriptionEl.textContent = data.description;
     
-    if (cancelRecordBtn) {
-      cancelRecordBtn.addEventListener('click', () => {
-        clearInterval(recordingInterval);
-        recordingState.style.display = 'none';
-        readyState.style.display = 'block';
+    if (agendaEl && data.agenda) {
+      agendaEl.innerHTML = '';
+      data.agenda.forEach(item => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        agendaEl.appendChild(li);
       });
     }
     
-    if (sendRecordBtn) {
-      sendRecordBtn.addEventListener('click', () => {
-        clearInterval(recordingInterval);
-        recordingState.style.display = 'none';
-        playbackState.style.display = 'block';
-        
-        // Simulate audio playback
-        if (audioPlayback) {
-          audioPlayback.src = '#';
-        }
-      });
-    }
+    if (materialsEl) materialsEl.textContent = data.materials || 'Not specified';
+    if (travelModeEl) travelModeEl.textContent = data.travelMode || 'Not specified';
+    if (travelTimeEl) travelTimeEl.textContent = data.travelTime || 'Not specified';
+    if (expensesEl) expensesEl.textContent = data.expenses || '₹0';
+    if (accommodationEl) accommodationEl.textContent = data.accommodation || 'Not Required';
+    if (followUpDateEl) followUpDateEl.textContent = data.followUpDate || 'Not scheduled';
+    if (followUpActionEl) followUpActionEl.textContent = data.followUpAction || 'No follow-up';
     
-    if (deleteRecordingBtn) {
-      deleteRecordingBtn.addEventListener('click', () => {
-        playbackState.style.display = 'none';
-        readyState.style.display = 'block';
-        if (audioPlayback) {
-          audioPlayback.src = '';
-        }
-      });
-    }
+    document.querySelectorAll('#visitDetailScreen .status-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.status === data.status) {
+        btn.classList.add('active');
+      }
+    });
+    
+    initVisitStatusButtons();
+    updateEndVisitButtonVisibility();
   }
 
-  // ========== FORM LOCATION BUTTONS ==========
-  // Lead Form Location Button
-  const leadMapBtn = document.getElementById('sbLeadMapBtn');
-  if (leadMapBtn) {
-    leadMapBtn.addEventListener('click', () => {
-      const statusEl = document.getElementById('sbLeadLocationStatus');
-      const coordsEl = document.getElementById('sbLeadCoords');
-      
-      if (navigator.geolocation) {
-        statusEl.textContent = 'Getting location...';
-        statusEl.style.color = '#f59e0b';
-        
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude.toFixed(6);
-            const lng = position.coords.longitude.toFixed(6);
-            coordsEl.value = `${lat}, ${lng}`;
-            statusEl.textContent = 'Location captured successfully!';
-            statusEl.style.color = '#22c55e';
-          },
-          (error) => {
-            console.error('Geolocation error:', error);
-            statusEl.textContent = 'Unable to get location. Please enter manually.';
-            statusEl.style.color = '#ef4444';
-            
-            // Fallback to default coordinates
-            coordsEl.value = '28.6139, 77.2090'; // Delhi coordinates
-          }
-        );
-      } else {
-        statusEl.textContent = 'Geolocation not supported by browser';
-        statusEl.style.color = '#ef4444';
-        coordsEl.value = '28.6139, 77.2090'; // Default coordinates
-      }
+  // ========== UPLOAD FUNCTIONALITY ==========
+  const leadUploadBtn = document.getElementById('leadUploadBtn');
+  const leadFileInput = document.getElementById('leadFileInput');
+  const leadUploadedFiles = document.getElementById('leadUploadedFiles');
+
+  if (leadUploadBtn && leadFileInput) {
+    leadUploadBtn.addEventListener('click', () => {
+      leadFileInput.click();
+    });
+
+    leadFileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        addUploadedFile(file, leadUploadedFiles);
+      });
     });
   }
 
-  // Opportunity Form Location Button
-  const opportunityMapBtn = document.getElementById('sbOpportunityMapBtn');
-  if (opportunityMapBtn) {
-    opportunityMapBtn.addEventListener('click', () => {
-      const statusEl = document.getElementById('sbOpportunityLocationStatus');
-      const coordsEl = document.getElementById('sbOpportunityCoords');
-      
-      if (navigator.geolocation) {
-        statusEl.textContent = 'Getting location...';
-        statusEl.style.color = '#f59e0b';
-        
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude.toFixed(6);
-            const lng = position.coords.longitude.toFixed(6);
-            coordsEl.value = `${lat}, ${lng}`;
-            statusEl.textContent = 'Location captured successfully!';
-            statusEl.style.color = '#22c55e';
-          },
-          (error) => {
-            console.error('Geolocation error:', error);
-            statusEl.textContent = 'Unable to get location. Please enter manually.';
-            statusEl.style.color = '#ef4444';
-            
-            // Fallback to default coordinates
-            coordsEl.value = '28.6139, 77.2090'; // Delhi coordinates
-          }
-        );
-      } else {
-        statusEl.textContent = 'Geolocation not supported by browser';
-        statusEl.style.color = '#ef4444';
-        coordsEl.value = '28.6139, 77.2090'; // Default coordinates
-      }
+  const opportunityUploadBtn = document.getElementById('opportunityUploadBtn');
+  const opportunityFileInput = document.getElementById('opportunityFileInput');
+  const opportunityUploadedFiles = document.getElementById('opportunityUploadedFiles');
+
+  if (opportunityUploadBtn && opportunityFileInput) {
+    opportunityUploadBtn.addEventListener('click', () => {
+      opportunityFileInput.click();
+    });
+
+    opportunityFileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        addUploadedFile(file, opportunityUploadedFiles);
+      });
+    });
+  }
+
+  // ========== ADD TASK BUTTONS ==========
+  const addTaskForLeadBtn = document.getElementById('addTaskForLeadBtn');
+  const addTaskForOpportunityBtn = document.getElementById('addTaskForOpportunityBtn');
+
+  if (addTaskForLeadBtn) {
+    addTaskForLeadBtn.addEventListener('click', () => {
+      showScreen('taskForm');
+    });
+  }
+
+  if (addTaskForOpportunityBtn) {
+    addTaskForOpportunityBtn.addEventListener('click', () => {
+      showScreen('taskForm');
     });
   }
 
@@ -1002,7 +2192,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // View Insights Button
   const viewInsightsBtn = document.getElementById('viewInsightsBtn');
   if (viewInsightsBtn) {
     viewInsightsBtn.addEventListener('click', () => {
@@ -1018,50 +2207,65 @@ document.addEventListener("DOMContentLoaded", () => {
     
     eventsContainer.innerHTML = '';
     
-    mockData.plannerEvents.forEach(event => {
-      const eventElement = document.createElement('div');
-      eventElement.className = 'planner-event';
-      
-      let icon = '📍';
-      let iconClass = 'event-type-meeting';
-      
-      switch(event.type) {
-        case 'call':
-          icon = '📞';
-          iconClass = 'event-type-call';
-          break;
-        case 'video':
-          icon = '🎥';
-          iconClass = 'event-type-video';
-          break;
-        case 'meeting':
-          icon = '📍';
-          iconClass = 'event-type-meeting';
-          break;
-        case 'task':
-          icon = '✓';
-          iconClass = 'event-type-task';
-          break;
-      }
-      
-      eventElement.innerHTML = `
-        <div class="event-type ${iconClass}">
-          ${icon}
-        </div>
-        <div class="event-content">
-          <div class="event-header">
-            <h4>${event.title}</h4>
-            <span class="event-badge">${event.type}</span>
+    if (mockData.plannerEvents && mockData.plannerEvents.length > 0) {
+      mockData.plannerEvents.forEach(event => {
+        const eventElement = document.createElement('div');
+        eventElement.className = 'planner-event';
+        
+        let icon = '📍';
+        let iconClass = 'event-type-meeting';
+        
+        switch(event.type) {
+          case 'call':
+            icon = '📞';
+            iconClass = 'event-type-call';
+            break;
+          case 'video':
+            icon = '🎥';
+            iconClass = 'event-type-video';
+            break;
+          case 'meeting':
+            icon = '📍';
+            iconClass = 'event-type-meeting';
+            break;
+          case 'task':
+            icon = '✓';
+            iconClass = 'event-type-task';
+            break;
+          case 'visit':
+            icon = '📍';
+            iconClass = 'event-type-meeting';
+            break;
+        }
+        
+        eventElement.innerHTML = `
+          <div class="event-type ${iconClass}">
+            ${icon}
           </div>
-          <div class="event-details">
-            <span>⏰ ${event.time} (${event.duration})</span>
-            ${event.attendees ? `<span>👥 ${event.attendees.join(', ')}</span>` : ''}
+          <div class="event-content">
+            <div class="event-header">
+              <h4>${event.title}</h4>
+              <span class="event-badge">${event.type}</span>
+            </div>
+            <div class="event-details">
+              <span>⏰ ${event.time} (${event.duration})</span>
+              ${event.attendees ? `<span>👥 ${event.attendees.join(', ')}</span>` : ''}
+              ${event.location ? `<span>📍 ${event.location}</span>` : ''}
+            </div>
           </div>
+        `;
+        
+        eventsContainer.appendChild(eventElement);
+      });
+    } else {
+      eventsContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <h4>No events scheduled</h4>
+          <p>Tap the "+ Add Event" button to schedule your first event.</p>
         </div>
       `;
-      
-      eventsContainer.appendChild(eventElement);
-    });
+    }
   }
 
   // Calendar Navigation
@@ -1069,62 +2273,134 @@ document.addEventListener("DOMContentLoaded", () => {
   const prevWeekBtn = document.getElementById('prevWeekBtn');
   const nextWeekBtn = document.getElementById('nextWeekBtn');
 
+  let currentDate = new Date();
+
   if (todayBtn) {
     todayBtn.addEventListener('click', () => {
-      updateCalendar(new Date());
+      currentDate = new Date();
+      updateCalendar(currentDate);
     });
   }
 
   if (prevWeekBtn) {
     prevWeekBtn.addEventListener('click', () => {
-      alert('Previous week navigation');
+      currentDate.setDate(currentDate.getDate() - 7);
+      updateCalendar(currentDate);
     });
   }
 
   if (nextWeekBtn) {
     nextWeekBtn.addEventListener('click', () => {
-      alert('Next week navigation');
+      currentDate.setDate(currentDate.getDate() + 7);
+      updateCalendar(currentDate);
     });
   }
 
   function updateCalendar(date) {
     const dateElements = document.querySelectorAll('.calendar-date');
+    const today = new Date();
+    
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    
     dateElements.forEach((element, index) => {
       element.classList.remove('today', 'selected');
       
-      // Mock: Tuesday is selected, Sunday is today
-      if (index === 2) {
-        element.classList.add('selected');
+      const cellDate = new Date(startOfWeek);
+      cellDate.setDate(startOfWeek.getDate() + index);
+      
+      const dayNumberEl = element.querySelector('.day-number');
+      if (dayNumberEl) {
+        dayNumberEl.textContent = cellDate.getDate();
       }
-      if (index === 0) {
+      
+      const dayNameEl = element.querySelector('.day-name');
+      if (dayNameEl) {
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayNameEl.textContent = dayNames[cellDate.getDay()];
+      }
+      
+      if (cellDate.toDateString() === today.toDateString()) {
         element.classList.add('today');
       }
-    });
-  }
-
-  // Add Event Button
-  const addEventBtn = document.getElementById('addEventBtn');
-  if (addEventBtn) {
-    addEventBtn.addEventListener('click', () => {
-      alert('Add event functionality coming soon!');
-    });
-  }
-
-  // ========== NOTIFICATIONS ==========
-  const notificationBtn = document.getElementById('notificationBtn');
-  const notificationDropdown = document.getElementById('notificationDropdown');
-
-  if (notificationBtn && notificationDropdown) {
-    notificationBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      notificationDropdown.classList.toggle('hidden');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.notification') && !e.target.closest('.notification-dropdown')) {
-        notificationDropdown.classList.add('hidden');
+      
+      if (cellDate.toDateString() === date.toDateString()) {
+        element.classList.add('selected');
       }
+      
+      element.onclick = () => {
+        currentDate = new Date(cellDate);
+        updateCalendar(currentDate);
+      };
+    });
+  }
+
+  // ========== VISITS FUNCTIONALITY ==========
+  function loadVisitsData() {
+    const visitsList = document.querySelector('#visitsScreen .leads-list');
+    if (!visitsList) return;
+    
+    const existingVisits = visitsList.querySelectorAll('.visit-card');
+    if (existingVisits.length > 3) {
+      for (let i = 3; i < existingVisits.length; i++) {
+        existingVisits[i].remove();
+      }
+    }
+    
+    Object.values(mockData.visits).forEach(visit => {
+      const existingVisit = visitsList.querySelector(`.visit-card[data-visit-id="${visit.id}"]`);
+      if (existingVisit) return;
+      
+      const visitCard = document.createElement('div');
+      visitCard.className = 'visit-card';
+      visitCard.setAttribute('data-visit-id', visit.id || '1');
+      visitCard.setAttribute('data-status', visit.status);
+      visitCard.setAttribute('data-priority', visit.priority);
+      
+      let iconClass = 'purple';
+      if (visit.priority === 'high') iconClass = 'orange';
+      if (visit.priority === 'medium') iconClass = 'blue';
+      
+      let statusClass = 'scheduled';
+      if (visit.status === 'in-progress') statusClass = 'in-progress';
+      if (visit.status === 'completed') statusClass = 'completed';
+      
+      visitCard.innerHTML = `
+        <div class="visit-icon">
+          <div class="icon-box ${iconClass}">📍</div>
+        </div>
+        <div class="visit-info">
+          <div class="visit-header">
+            <h4 class="visit-title">${visit.title}</h4>
+            <div class="visit-badges">
+              <span class="visit-priority-badge ${visit.priority}">${visit.priority}</span>
+              <span class="visit-status-badge ${statusClass}">${visit.status}</span>
+            </div>
+          </div>
+          <p class="visit-customer">${visit.customer}</p>
+          <p class="visit-description">${visit.description}</p>
+          <div class="visit-details">
+            <span class="visit-time">⏰ ${visit.time} (${visit.duration})</span>
+            <span class="visit-date">📅 ${visit.date}</span>
+          </div>
+          <div class="visit-location">
+            <i class="fas fa-map-marker-alt"></i>
+            <span>${visit.location}</span>
+          </div>
+        </div>
+      `;
+      
+      visitsList.appendChild(visitCard);
+    });
+    
+    document.querySelectorAll('#visitsScreen .visit-card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        if (!e.target.closest('.icon-btn')) {
+          const visitId = this.getAttribute('data-visit-id') || '1';
+          loadVisitDetail(visitId);
+          showScreen('visitDetail');
+        }
+      });
     });
   }
 
@@ -1137,10 +2413,10 @@ document.addEventListener("DOMContentLoaded", () => {
     proposals: document.getElementById('proposalsSearch'),
     customers: document.getElementById('customersSearch'),
     complaints: document.getElementById('complaintsSearch'),
-    ideas: document.getElementById('ideasSearch')
+    ideas: document.getElementById('ideasSearch'),
+    visits: document.getElementById('visitsSearch')
   };
 
-  // Add search functionality
   Object.entries(searchInputs).forEach(([key, input]) => {
     if (input) {
       input.addEventListener('input', function(e) {
@@ -1175,11 +2451,17 @@ document.addEventListener("DOMContentLoaded", () => {
       case 'ideas':
         selector = '.insight-card';
         break;
+      case 'visits':
+        selector = '.visit-card';
+        break;
       default:
         return;
     }
     
-    document.querySelectorAll(selector).forEach(item => {
+    const items = document.querySelectorAll(selector);
+    if (items.length === 0) return;
+    
+    items.forEach(item => {
       const text = item.textContent.toLowerCase();
       item.style.display = text.includes(query) ? '' : 'none';
     });
@@ -1191,7 +2473,8 @@ document.addEventListener("DOMContentLoaded", () => {
     tasks: document.getElementById('tasksFilterBtn'),
     opportunities: document.getElementById('opportunitiesFilterBtn'),
     proposals: document.getElementById('proposalsFilterBtn'),
-    complaints: document.getElementById('complaintsFilterBtn')
+    complaints: document.getElementById('complaintsFilterBtn'),
+    visits: document.getElementById('visitsFilterBtn')
   };
 
   const filterPanels = {
@@ -1199,28 +2482,25 @@ document.addEventListener("DOMContentLoaded", () => {
     tasks: document.getElementById('tasksFilterPanel'),
     opportunities: document.getElementById('opportunitiesFilterPanel'),
     proposals: document.getElementById('proposalsFilterPanel'),
-    complaints: document.getElementById('complaintsFilterPanel')
+    complaints: document.getElementById('complaintsFilterPanel'),
+    visits: document.getElementById('visitsFilterPanel')
   };
 
-  // Toggle filter panels
   Object.entries(filterButtons).forEach(([key, button]) => {
     const panel = filterPanels[key];
     if (button && panel) {
       button.addEventListener('click', (e) => {
         e.stopPropagation();
         
-        // Close all other panels
         Object.values(filterPanels).forEach(p => {
           if (p && p !== panel) p.classList.add('hidden');
         });
         
-        // Toggle current panel
         panel.classList.toggle('hidden');
       });
     }
   });
 
-  // Close panels when clicking outside
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.filter-btn') && !e.target.closest('.filter-panel')) {
       Object.values(filterPanels).forEach(panel => {
@@ -1229,7 +2509,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Filter options
   document.querySelectorAll('.filter-option').forEach(option => {
     option.addEventListener('click', function() {
       const filterGroup = this.closest('.filter-group');
@@ -1242,7 +2521,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Clear filters
   document.querySelectorAll('.clear-filters').forEach(button => {
     button.addEventListener('click', () => {
       const panel = button.closest('.filter-panel');
@@ -1260,15 +2538,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function applyFilters() {
-    // Get active filters
     const leadStatus = document.querySelector('#leadsFilterPanel [data-filter="status"].active')?.dataset.value;
     const taskPriority = document.querySelector('#tasksFilterPanel [data-filter="priority"].active')?.dataset.value;
     const oppStage = document.querySelector('#opportunitiesFilterPanel [data-filter="stage"].active')?.dataset.value;
     const propStatus = document.querySelector('#proposalsFilterPanel [data-filter="status"].active')?.dataset.value;
     const compPriority = document.querySelector('#complaintsFilterPanel [data-filter="priority"].active')?.dataset.value;
     const compStatus = document.querySelector('#complaintsFilterPanel [data-filter="status"].active')?.dataset.value;
+    const visitStatus = document.querySelector('#visitsFilterPanel [data-filter="status"].active')?.dataset.value;
+    const visitPriority = document.querySelector('#visitsFilterPanel [data-filter="priority"].active')?.dataset.value;
 
-    // Apply lead filters
     if (leadStatus && leadStatus !== 'all') {
       document.querySelectorAll('.lead-card').forEach(card => {
         const cardStatus = card.dataset.status;
@@ -1280,7 +2558,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Apply task filters
     if (taskPriority && taskPriority !== 'all') {
       document.querySelectorAll('.task-item').forEach(task => {
         const cardPriority = task.dataset.priority;
@@ -1292,7 +2569,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Apply opportunity filters
     if (oppStage && oppStage !== 'all') {
       document.querySelectorAll('.opportunity-card').forEach(card => {
         const cardStage = card.dataset.stage;
@@ -1304,7 +2580,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Apply proposal filters
     if (propStatus && propStatus !== 'all') {
       document.querySelectorAll('.proposal-card').forEach(card => {
         const cardStatus = card.dataset.status;
@@ -1316,7 +2591,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Apply complaint filters
     if ((compPriority && compPriority !== 'all') || (compStatus && compStatus !== 'all')) {
       document.querySelectorAll('.complaint-card').forEach(card => {
         const cardPriority = card.dataset.priority;
@@ -1330,6 +2604,20 @@ document.addEventListener("DOMContentLoaded", () => {
         card.style.display = '';
       });
     }
+
+    if ((visitStatus && visitStatus !== 'all') || (visitPriority && visitPriority !== 'all')) {
+      document.querySelectorAll('.visit-card').forEach(card => {
+        const cardStatus = card.dataset.status;
+        const cardPriority = card.dataset.priority;
+        const statusMatch = !visitStatus || visitStatus === 'all' || cardStatus === visitStatus;
+        const priorityMatch = !visitPriority || visitPriority === 'all' || cardPriority === visitPriority;
+        card.style.display = statusMatch && priorityMatch ? '' : 'none';
+      });
+    } else {
+      document.querySelectorAll('.visit-card').forEach(card => {
+        card.style.display = '';
+      });
+    }
   }
 
   // ========== CHAT FUNCTIONALITY ==========
@@ -1340,31 +2628,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatInput = document.getElementById('chatInput');
   const chatMessages = document.getElementById('chatMessages');
 
-  // Open chat
   if (fabBtn && chatModal) {
     fabBtn.addEventListener('click', () => {
       chatModal.classList.remove('hidden');
     });
   }
 
-  // Close chat
   if (closeChatBtn && chatModal) {
     closeChatBtn.addEventListener('click', () => {
       chatModal.classList.add('hidden');
     });
   }
 
-  // Send message
   function sendMessage() {
     if (!chatInput || !chatMessages) return;
     
     const message = chatInput.value.trim();
     if (message) {
-      // Add user message
       addMessage('user', message);
       chatInput.value = '';
       
-      // Simulate AI response
       setTimeout(() => {
         const responses = [
           "I understand. Let me check the lead status for you...",
@@ -1381,12 +2664,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Send button
   if (sendMessageBtn) {
     sendMessageBtn.addEventListener('click', sendMessage);
   }
 
-  // Enter key
   if (chatInput) {
     chatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -1418,10 +2699,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const taskItem = this.closest('.task-item');
       if (this.checked) {
         taskItem.style.opacity = '0.7';
-        taskItem.querySelector('h4').style.textDecoration = 'line-through';
+        const heading = taskItem.querySelector('h4');
+        if (heading) heading.style.textDecoration = 'line-through';
       } else {
         taskItem.style.opacity = '1';
-        taskItem.querySelector('h4').style.textDecoration = 'none';
+        const heading = taskItem.querySelector('h4');
+        if (heading) heading.style.textDecoration = 'none';
       }
     });
   });
@@ -1430,17 +2713,15 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll('.tab-btn').forEach(tabBtn => {
     tabBtn.addEventListener('click', function() {
       const tabContainer = this.closest('.detail-tabs');
+      if (!tabContainer) return;
       
-      // Update active tab button
       tabContainer.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
       });
       this.classList.add('active');
       
-      // Get tab id
       const tabId = this.getAttribute('data-tab') || this.textContent.toLowerCase();
       
-      // Show corresponding tab content
       tabContainer.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
         if (content.id.includes(tabId)) {
@@ -1465,20 +2746,16 @@ document.addEventListener("DOMContentLoaded", () => {
     settings: document.getElementById('navSettings')
   };
 
-  // Home nav
   if (navItems.home) {
     navItems.home.addEventListener('click', () => {
-      // Remove active from all
       Object.values(navItems).forEach(item => {
         if (item) item.classList.remove('active');
       });
-      // Add active to home
       navItems.home.classList.add('active');
       showScreen('dashboard');
     });
   }
 
-  // Planner nav
   if (navItems.planner) {
     navItems.planner.addEventListener('click', () => {
       Object.values(navItems).forEach(item => {
@@ -1490,7 +2767,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Ideas nav
   if (navItems.ideas) {
     navItems.ideas.addEventListener('click', () => {
       Object.values(navItems).forEach(item => {
@@ -1502,7 +2778,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Settings nav
   if (navItems.settings) {
     navItems.settings.addEventListener('click', () => {
       Object.values(navItems).forEach(item => {
@@ -1513,24 +2788,352 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ========== CREATE BUTTONS INSIDE SCREENS ==========
+  const createOpportunityFab = document.getElementById('createOpportunityBtn');
+  if (createOpportunityFab) {
+    createOpportunityFab.addEventListener('click', () => {
+      showScreen('opportunityForm');
+    });
+  }
+
+  const createProposalFab = document.getElementById('createProposalBtn');
+  if (createProposalFab) {
+    createProposalFab.addEventListener('click', () => {
+      alert('Create Proposal functionality coming soon!');
+    });
+  }
+
+  const createComplaintFab = document.getElementById('createComplaintBtn');
+  if (createComplaintFab) {
+    createComplaintFab.addEventListener('click', () => {
+      showScreen('complaintForm');
+    });
+  }
+
+  const createCustomerFab = document.getElementById('createCustomerBtn');
+  if (createCustomerFab) {
+    createCustomerFab.addEventListener('click', () => {
+      showScreen('customerForm');
+    });
+  }
+
+  const scheduleVisitFab = document.getElementById('scheduleVisitFab');
+  if (scheduleVisitFab) {
+    scheduleVisitFab.addEventListener('click', () => {
+      showScreen('visitForm');
+    });
+  }
+
+  // ========== SALES DASHBOARD CHARTS ==========
+  function initializeSalesCharts() {
+    console.log("Initializing sales charts...");
+    
+    // Initialize Line Chart (Target vs Achievement)
+    const lineChartCanvas = document.getElementById('lineChartCanvas');
+    if (lineChartCanvas) {
+      const lineCtx = lineChartCanvas.getContext('2d');
+      
+      // Sample monthly data
+      const months = ['Jan', 'Feb', 'Mar', 'Apr'];
+      const targetData = [10, 15, 20, 15]; // in Lakhs
+      const achievedData = [8, 14, 18, 12]; // in Lakhs
+      
+      new Chart(lineCtx, {
+        type: 'line',
+        data: {
+          labels: months,
+          datasets: [
+            {
+              label: 'Target',
+              data: targetData,
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: 'Achieved',
+              data: achievedData,
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false // We have custom legend
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ₹${context.raw}L`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return `₹${value}L`;
+                }
+              },
+              title: {
+                display: true,
+                text: 'Amount (in Lakhs)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Month'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize Region Pie Chart
+    const regionPieCanvas = document.getElementById('regionPieCanvas');
+    if (regionPieCanvas) {
+      const regionCtx = regionPieCanvas.getContext('2d');
+      
+      new Chart(regionCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['North', 'South', 'West', 'East'],
+          datasets: [{
+            data: [42, 28, 18, 12],
+            backgroundColor: [
+              '#3b82f6',
+              '#8b5cf6',
+              '#f59e0b',
+              '#14b8a6'
+            ],
+            borderWidth: 0,
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              display: false // We have custom legend
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.label}: ${context.raw}%`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize Product Pie Chart
+    const productPieCanvas = document.getElementById('productPieCanvas');
+    if (productPieCanvas) {
+      const productCtx = productPieCanvas.getContext('2d');
+      
+      new Chart(productCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Software', 'Services', 'Hardware', 'Support'],
+          datasets: [{
+            data: [45, 30, 15, 10],
+            backgroundColor: [
+              '#3b82f6',
+              '#8b5cf6',
+              '#f59e0b',
+              '#14b8a6'
+            ],
+            borderWidth: 0,
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize Client Type Pie Chart
+    const clientPieCanvas = document.getElementById('clientPieCanvas');
+    if (clientPieCanvas) {
+      const clientCtx = clientPieCanvas.getContext('2d');
+      
+      new Chart(clientCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Enterprise', 'SMB', 'Startup'],
+          datasets: [{
+            data: [52, 38, 10],
+            backgroundColor: [
+              '#3b82f6',
+              '#8b5cf6',
+              '#f59e0b'
+            ],
+            borderWidth: 0,
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize chart switching functionality
+    setupChartSwitching();
+  }
+
+  function setupChartSwitching() {
+  console.log("Setting up chart switching...");
+  
+  // Contribution Type Selector (Pie Charts)
+  const contributionType = document.getElementById('contributionType');
+  const pieCharts = document.querySelectorAll('.pie-chart');
+  const carouselDots = document.querySelectorAll('.carousel-dots .dot');
+  const carouselPrev = document.querySelector('.carousel-nav-btn.prev');
+  const carouselNext = document.querySelector('.carousel-nav-btn.next');
+  
+  console.log("Found elements:", {
+    contributionType: !!contributionType,
+    pieCharts: pieCharts.length,
+    carouselDots: carouselDots.length,
+    carouselPrev: !!carouselPrev,
+    carouselNext: !!carouselNext
+  });
+  
+  let currentPieIndex = 0;
+  
+  // Show only the first pie chart by default
+  if (pieCharts.length > 0) {
+    pieCharts.forEach((chart, index) => {
+      chart.style.display = index === 0 ? 'block' : 'none';
+      chart.classList.toggle('active', index === 0);
+    });
+  }
+  
+  if (contributionType) {
+    contributionType.addEventListener('change', function() {
+      const selectedValue = this.value;
+      console.log('Contribution type changed to:', selectedValue);
+      
+      pieCharts.forEach((chart, index) => {
+        chart.style.display = 'none';
+        chart.classList.remove('active');
+        if (chart.id === `${selectedValue}Pie`) {
+          chart.style.display = 'block';
+          chart.classList.add('active');
+          currentPieIndex = index;
+          updateCarouselDots();
+        }
+      });
+    });
+  }
+  
+  // Carousel Navigation
+  if (carouselPrev && carouselNext) {
+    carouselPrev.addEventListener('click', () => {
+      currentPieIndex = (currentPieIndex - 1 + pieCharts.length) % pieCharts.length;
+      console.log('Previous clicked, index:', currentPieIndex);
+      updateActivePieChart();
+    });
+    
+    carouselNext.addEventListener('click', () => {
+      currentPieIndex = (currentPieIndex + 1) % pieCharts.length;
+      console.log('Next clicked, index:', currentPieIndex);
+      updateActivePieChart();
+    });
+  }
+  
+  // Carousel Dots
+  if (carouselDots.length > 0) {
+    carouselDots.forEach((dot, index) => {
+      dot.addEventListener('click', () => {
+        console.log('Dot clicked:', index);
+        currentPieIndex = index;
+        updateActivePieChart();
+      });
+    });
+  }
+  
+  function updateActivePieChart() {
+    console.log('Updating active pie chart to index:', currentPieIndex);
+    
+    pieCharts.forEach((chart, index) => {
+      chart.style.display = index === currentPieIndex ? 'block' : 'none';
+      chart.classList.toggle('active', index === currentPieIndex);
+    });
+    
+    // Update dropdown
+    const pieTypes = ['region', 'product', 'client'];
+    if (contributionType) {
+      contributionType.value = pieTypes[currentPieIndex];
+      console.log('Updated dropdown to:', pieTypes[currentPieIndex]);
+    }
+    
+    updateCarouselDots();
+  }
+  
+  function updateCarouselDots() {
+    carouselDots.forEach((dot, index) => {
+      dot.classList.toggle('active', index === currentPieIndex);
+    });
+    console.log('Updated carousel dots');
+  }
+  
+  // Initialize
+  updateCarouselDots();
+}
+
   // ========== INITIALIZATION ==========
-  // Set initial active nav
   if (navItems.home) {
     navItems.home.classList.add('active');
   }
 
-  // Load initial data
   loadInsights();
   loadPlannerEvents();
   updateCalendar(new Date());
+  updateNotificationCount();
+  loadVisitsData();
+  autoGenerateVisitDateTime();
+  initVisitStatusButtons();
+  autoFillComplaintContactInfo();
 
-  // Add welcome message to chat
   if (chatMessages) {
     addMessage('ai', "Hi! I'm your SalesBuddy AI Assistant. How can I help you today?");
   }
 
-  // Show dashboard initially
   showScreen('dashboard');
 
-  console.log('SalesBuddy fully loaded with form handling!');
+  console.log('SalesBuddy fully loaded with Charts and Complaint Form functionality!');
 });
