@@ -1,7 +1,7 @@
-// script.js - UPDATED VERSION with FIXED Contribution Breakdown Charts
+// script.js - UPDATED VERSION with Funnel Details Table
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("SalesBuddy Application Initialized - with Fixed Charts");
+  console.log("SalesBuddy Application Initialized - with Funnel Details");
 
   // ========== SCREEN MANAGEMENT ==========
   const screens = {
@@ -61,11 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
       
       // Load data for specific screens
       if (screenId === 'sales') {
-    // Initialize charts when sales screen is shown
-    setTimeout(() => {
-      initializeSalesCharts();
-    }, 100);
-  
+        // Initialize charts when sales screen is shown
+        setTimeout(() => {
+          initializeSalesCharts();
+        }, 100);
       }
     }
   };
@@ -83,6 +82,397 @@ document.addEventListener("DOMContentLoaded", () => {
       showScreen('dashboard');
     }
   };
+
+  // ========== FUNNEL DETAILS FUNCTIONALITY ==========
+  function setupFunnelDetails() {
+    const funnelContainer = document.querySelector('.funnel-container');
+    const funnelDetailsModal = document.getElementById('funnelDetailsModal');
+    const closeFunnelDetailsBtn = document.getElementById('closeFunnelDetails');
+    const funnelTableBody = document.getElementById('funnelTableBody');
+    const funnelTimeRangeSelect = document.getElementById('funnelTimeRange');
+    const exportFunnelCSVBtn = document.getElementById('exportFunnelCSV');
+    const printFunnelReportBtn = document.getElementById('printFunnelReport');
+
+    // Mock funnel data
+    const funnelData = {
+      current: {
+        stages: [
+          {
+            name: 'Leads',
+            count: 156,
+            conversion: '100%',
+            avgTime: '0 days',
+            value: '₹0',
+            color: '#3b82f6',
+            opportunities: 24,
+            hotLeads: 12,
+            warmLeads: 58,
+            coldLeads: 86
+          },
+          {
+            name: 'Qualified',
+            count: 78,
+            conversion: '50%',
+            avgTime: '7 days',
+            value: '₹29.25L',
+            color: '#8b5cf6',
+            qualifiedBy: 'Rahul Kumar',
+            avgLeadScore: 75,
+            followUps: 12
+          },
+          {
+            name: 'Proposals',
+            count: 24,
+            conversion: '31%',
+            avgTime: '14 days',
+            value: '₹9L',
+            color: '#f59e0b',
+            proposalsSent: 24,
+            proposalsPending: 8,
+            proposalsReviewed: 16
+          },
+          {
+            name: 'Won',
+            count: 12,
+            conversion: '50%',
+            avgTime: '21 days',
+            value: '₹45L',
+            color: '#22c55e',
+            dealsClosed: 12,
+            avgDealSize: '₹3.75L',
+            totalRevenue: '₹45L'
+          }
+        ],
+        summary: {
+          conversionRate: '7.7%',
+          avgDealSize: '₹3.75L',
+          avgSalesCycle: '42 days',
+          totalValue: '₹45L'
+        }
+      },
+      'last-month': {
+        stages: [
+          { name: 'Leads', count: 142, conversion: '100%', avgTime: '0 days', value: '₹0', color: '#3b82f6' },
+          { name: 'Qualified', count: 71, conversion: '50%', avgTime: '8 days', value: '₹26.6L', color: '#8b5cf6' },
+          { name: 'Proposals', count: 21, conversion: '30%', avgTime: '15 days', value: '₹7.9L', color: '#f59e0b' },
+          { name: 'Won', count: 10, conversion: '48%', avgTime: '22 days', value: '₹35L', color: '#22c55e' }
+        ],
+        summary: {
+          conversionRate: '7.0%',
+          avgDealSize: '₹3.5L',
+          avgSalesCycle: '45 days',
+          totalValue: '₹35L'
+        }
+      },
+      quarter: {
+        stages: [
+          { name: 'Leads', count: 480, conversion: '100%', avgTime: '0 days', value: '₹0', color: '#3b82f6' },
+          { name: 'Qualified', count: 240, conversion: '50%', avgTime: '7 days', value: '₹90L', color: '#8b5cf6' },
+          { name: 'Proposals', count: 72, conversion: '30%', avgTime: '14 days', value: '₹27L', color: '#f59e0b' },
+          { name: 'Won', count: 36, conversion: '50%', avgTime: '21 days', value: '₹135L', color: '#22c55e' }
+        ],
+        summary: {
+          conversionRate: '7.5%',
+          avgDealSize: '₹3.75L',
+          avgSalesCycle: '42 days',
+          totalValue: '₹135L'
+        }
+      }
+    };
+
+    // Function to open funnel details
+    function openFunnelDetails() {
+      if (funnelDetailsModal) {
+        funnelDetailsModal.classList.remove('hidden');
+        populateFunnelTable();
+        updateSummaryMetrics();
+      }
+    }
+
+    // Function to populate the funnel table
+    function populateFunnelTable() {
+      if (!funnelTableBody) return;
+      
+      const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
+      const data = funnelData[timeRange] || funnelData.current;
+      
+      funnelTableBody.innerHTML = '';
+      
+      data.stages.forEach((stage, index) => {
+        const row = document.createElement('tr');
+        
+        // Calculate progress for visual indicator
+        const progressWidth = (stage.count / data.stages[0].count) * 100;
+        
+        row.innerHTML = `
+          <td>
+            <div class="stage-name">${stage.name}</div>
+            <div class="stage-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${progressWidth}%; background: ${stage.color}"></div>
+              </div>
+              <span class="stage-percentage">${Math.round(progressWidth)}%</span>
+            </div>
+          </td>
+          <td>
+            <div class="stage-count">${stage.count}</div>
+            ${index > 0 ? `<div class="stage-change">From ${data.stages[index-1].count}</div>` : ''}
+          </td>
+          <td>
+            <div class="conversion-rate">${stage.conversion}</div>
+            <div class="conversion-trend">
+              ${index > 0 ? `of ${data.stages[index-1].name}` : 'Initial stage'}
+            </div>
+          </td>
+          <td>
+            <div class="avg-time">${stage.avgTime}</div>
+            <div class="time-trend">${index === 0 ? 'N/A' : 'Avg. duration'}</div>
+          </td>
+          <td>
+            <div class="stage-value">${stage.value}</div>
+            ${stage.value !== '₹0' ? `<div class="value-per-deal">Avg: ₹${(parseFloat(stage.value.replace('₹', '').replace('L', '')) / stage.count).toFixed(2)}L</div>` : ''}
+          </td>
+          <td>
+            <button class="action-btn view-stage-btn" data-stage="${stage.name.toLowerCase()}">
+              <i class="fas fa-eye"></i> View
+            </button>
+          </td>
+        `;
+        
+        funnelTableBody.appendChild(row);
+      });
+      
+      // Add event listeners to view stage buttons
+      document.querySelectorAll('.view-stage-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const stage = this.getAttribute('data-stage');
+          viewStageDetails(stage);
+        });
+      });
+    }
+
+    // Function to update summary metrics
+    function updateSummaryMetrics() {
+      const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
+      const data = funnelData[timeRange] || funnelData.current;
+      
+      // Update summary cards
+      const summaryCards = document.querySelectorAll('.summary-card');
+      if (summaryCards.length >= 3) {
+        const conversionRate = summaryCards[0].querySelector('.summary-value');
+        const avgDealSize = summaryCards[1].querySelector('.summary-value');
+        const avgSalesCycle = summaryCards[2].querySelector('.summary-value');
+        
+        if (conversionRate) conversionRate.textContent = data.summary.conversionRate;
+        if (avgDealSize) avgDealSize.textContent = data.summary.avgDealSize;
+        if (avgSalesCycle) avgSalesCycle.textContent = data.summary.avgSalesCycle;
+      }
+    }
+
+    // Function to view stage details
+    function viewStageDetails(stageName) {
+      const stageData = {
+        leads: {
+          title: 'Leads Details',
+          icon: '👤',
+          data: [
+            { label: 'Total Leads', value: '156', change: '+14 from last month', icon: '📊' },
+            { label: 'Hot Leads', value: '12', change: '+2 from last month', icon: '🔥' },
+            { label: 'Warm Leads', value: '58', change: '+8 from last month', icon: '🌡️' },
+            { label: 'Cold Leads', value: '86', change: '+4 from last month', icon: '❄️' },
+            { label: 'New This Week', value: '24', change: 'Weekly average', icon: '📅' },
+            { label: 'Conversion Rate', value: '7.7%', change: '+0.7% from last month', icon: '📈' }
+          ],
+          description: 'Leads are potential customers who have shown interest in your products or services.'
+        },
+        qualified: {
+          title: 'Qualified Leads Details',
+          icon: '✅',
+          data: [
+            { label: 'Total Qualified', value: '78', change: '+7 from last month', icon: '📊' },
+            { label: 'Avg. Qualification Time', value: '7 days', change: '-1 day improvement', icon: '⏱️' },
+            { label: 'Qualified by Top Sales', value: 'Rahul Kumar', change: '12 leads qualified', icon: '👑' },
+            { label: 'Avg. Lead Score', value: '75/100', change: '+5 points improvement', icon: '🎯' },
+            { label: 'Follow-ups Required', value: '12', change: 'Pending follow-ups', icon: '📞' },
+            { label: 'Disqualified Leads', value: '6', change: '-2 from last month', icon: '❌' }
+          ],
+          description: 'Qualified leads have been evaluated and meet the criteria for potential customers.'
+        },
+        proposals: {
+          title: 'Proposals Details',
+          icon: '📄',
+          data: [
+            { label: 'Proposals Sent', value: '24', change: '+3 from last month', icon: '📤' },
+            { label: 'Proposals Pending', value: '8', change: 'Awaiting response', icon: '⏳' },
+            { label: 'Proposals Reviewed', value: '16', change: '+2 from last month', icon: '👁️' },
+            { label: 'Avg. Response Time', value: '3 days', change: '-0.5 days improvement', icon: '⏰' },
+            { label: 'Avg. Proposal Value', value: '₹3.75L', change: '+₹0.25L from last month', icon: '💰' },
+            { label: 'Proposal Success Rate', value: '50%', change: '+5% from last month', icon: '📈' }
+          ],
+          description: 'Proposals are formal offers sent to qualified leads with pricing and terms.'
+        },
+        won: {
+          title: 'Won Deals Details',
+          icon: '💰',
+          data: [
+            { label: 'Deals Closed', value: '12', change: '+2 from last month', icon: '✅' },
+            { label: 'Total Revenue', value: '₹45L', change: '+₹10L from last month', icon: '📊' },
+            { label: 'Avg. Deal Size', value: '₹3.75L', change: '+₹0.25L from last month', icon: '📦' },
+            { label: 'Avg. Sales Cycle', value: '42 days', change: '-3 days improvement', icon: '🔄' },
+            { label: 'Top Performer', value: 'Priya Sharma', change: '3 deals won', icon: '👑' },
+            { label: 'Biggest Deal', value: '₹12.5L', change: 'Enterprise Software License', icon: '🏆' }
+          ],
+          description: 'Won deals represent successful conversions that have generated revenue.'
+        }
+      };
+
+      const stage = stageData[stageName] || stageData.leads;
+      
+      // Create and show modal with stage details
+      const stageModal = document.createElement('div');
+      stageModal.className = 'modal hidden';
+      setTimeout(() => {
+        stageModal.classList.remove('hidden');
+      }, 10);
+      
+      stageModal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+          <div class="modal-header">
+            <h3><span style="margin-right: 10px;">${stage.icon}</span> ${stage.title}</h3>
+            <button class="close-modal close-stage-modal">×</button>
+          </div>
+          <div class="modal-body">
+            <p class="stage-description">${stage.description}</p>
+            <div class="stage-details-grid">
+              ${stage.data.map(item => `
+                <div class="detail-item">
+                  <div class="detail-icon">${item.icon}</div>
+                  <div class="detail-content">
+                    <div class="detail-label">${item.label}</div>
+                    <div class="detail-value">${item.value}</div>
+                    <div class="detail-change">${item.change}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="stage-actions">
+              <button class="btn btn-secondary close-stage-modal">Close</button>
+              <button class="btn btn-primary" onclick="exportStageData('${stageName}')">
+                <i class="fas fa-download"></i> Export Data
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(stageModal);
+      
+      // Close functionality
+      stageModal.querySelectorAll('.close-stage-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+          stageModal.classList.add('hidden');
+          setTimeout(() => {
+            if (stageModal.parentNode) {
+              stageModal.parentNode.removeChild(stageModal);
+            }
+          }, 300);
+        });
+      });
+      
+      // Close on background click
+      stageModal.addEventListener('click', (e) => {
+        if (e.target === stageModal) {
+          stageModal.classList.add('hidden');
+          setTimeout(() => {
+            if (stageModal.parentNode) {
+              stageModal.parentNode.removeChild(stageModal);
+            }
+          }, 300);
+        }
+      });
+    }
+
+    // Function to export stage data
+    window.exportStageData = function(stageName) {
+      const stageData = {
+        leads: 'Leads,156,12,58,86,24,7.7%',
+        qualified: 'Qualified Leads,78,7 days,Rahul Kumar,75/100,12,6',
+        proposals: 'Proposals,24,8,16,3 days,₹3.75L,50%',
+        won: 'Won Deals,12,₹45L,₹3.75L,42 days,Priya Sharma,₹12.5L'
+      };
+      
+      const data = stageData[stageName] || stageData.leads;
+      const csvContent = 'data:text/csv;charset=utf-8,' + data;
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `${stageName}_data.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showToast(`${stageName} data exported successfully!`, 'success');
+    };
+
+    // Event Listeners
+    if (funnelContainer) {
+      funnelContainer.addEventListener('click', (e) => {
+        if (!e.target.closest('.funnel-nav')) {
+          openFunnelDetails();
+        }
+      });
+    }
+
+    if (closeFunnelDetailsBtn && funnelDetailsModal) {
+      closeFunnelDetailsBtn.addEventListener('click', () => {
+        funnelDetailsModal.classList.add('hidden');
+      });
+    }
+
+    if (funnelTimeRangeSelect) {
+      funnelTimeRangeSelect.addEventListener('change', () => {
+        populateFunnelTable();
+        updateSummaryMetrics();
+      });
+    }
+
+    if (exportFunnelCSVBtn) {
+      exportFunnelCSVBtn.addEventListener('click', () => {
+        const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
+        const data = funnelData[timeRange] || funnelData.current;
+        
+        let csvContent = 'Stage,Count,Conversion Rate,Avg Time in Stage,Value\n';
+        data.stages.forEach(stage => {
+          csvContent += `${stage.name},${stage.count},${stage.conversion},${stage.avgTime},${stage.value}\n`;
+        });
+        
+        const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
+        const link = document.createElement('a');
+        link.setAttribute('href', encodedUri);
+        link.setAttribute('download', `funnel_report_${timeRange}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('Funnel report exported as CSV!', 'success');
+      });
+    }
+
+    if (printFunnelReportBtn) {
+      printFunnelReportBtn.addEventListener('click', () => {
+        window.print();
+      });
+    }
+
+    // Close modal on outside click
+    if (funnelDetailsModal) {
+      funnelDetailsModal.addEventListener('click', (e) => {
+        if (e.target === funnelDetailsModal) {
+          funnelDetailsModal.classList.add('hidden');
+        }
+      });
+    }
+  }
 
   // ========== VISIT FORM - AUTO-GENERATE DATE/TIME ==========
   function autoGenerateVisitDateTime() {
@@ -2812,588 +3202,264 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-// ========== SIMPLIFIED SALES DASHBOARD CHARTS ==========
-function initializeSalesCharts() {
-  console.log("Initializing simplified sales charts...");
-  
-  // Initialize Line Chart
-  initializeLineChart();
-  
-  // Initialize Single Contribution Chart
-  initializeContributionChart();
-}
-
-function initializeLineChart() {
-  const lineChartCanvas = document.getElementById('lineChartCanvas');
-  if (!lineChartCanvas) return;
-  
-  const lineCtx = lineChartCanvas.getContext('2d');
-  
-  const months = ['Jan', 'Feb', 'Mar', 'Apr'];
-  const targetData = [10, 15, 20, 15];
-  const achievedData = [8, 14, 18, 12];
-  
-  new Chart(lineCtx, {
-    type: 'line',
-    data: {
-      labels: months,
-      datasets: [
-        {
-          label: 'Target',
-          data: targetData,
-          borderColor: '#2563eb',
-          backgroundColor: 'rgba(37, 99, 235, 0.1)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.4
-        },
-        {
-          label: 'Achieved',
-          data: achievedData,
-          borderColor: '#22c55e',
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.4
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return `₹${value}L`;
-            }
-          }
-        }
-      }
-    }
-  });
-  
-  console.log("Line chart initialized");
-}
-
-// Single chart for all contribution types
-let contributionChart = null;
-let currentChartType = 'region';
-
-function initializeContributionChart() {
-  const chartCanvas = document.getElementById('contributionChart');
-  if (!chartCanvas) {
-    console.error("Contribution chart canvas not found!");
-    return;
-  }
-  
-  const ctx = chartCanvas.getContext('2d');
-  
-  // Initial chart data (Region)
-  const data = getChartData('region');
-  
-  contributionChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: data,
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '65%',
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return `${context.label}: ${context.raw}%`;
-            }
-          }
-        }
-      }
-    }
-  });
-  
-  // Update legend
-  updateChartLegend(data);
-  
-  // Setup chart switching
-  setupChartSwitcher();
-  
-  console.log("Contribution chart initialized");
-}
-
-function getChartData(type) {
-  const dataSets = {
-    region: {
-      labels: ['North', 'South', 'West', 'East'],
-      data: [42, 28, 18, 12],
-      colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
-      labelsFull: ['North Region', 'South Region', 'West Region', 'East Region']
-    },
-    product: {
-      labels: ['Software', 'Services', 'Hardware', 'Support'],
-      data: [45, 30, 15, 10],
-      colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
-      labelsFull: ['Software Products', 'Services', 'Hardware', 'Support Services']
-    },
-    client: {
-      labels: ['Enterprise', 'SMB', 'Startup'],
-      data: [52, 38, 10],
-      colors: ['#3b82f6', '#8b5cf6', '#f59e0b'],
-      labelsFull: ['Enterprise Clients', 'Small & Medium Business', 'Startups']
-    }
-  };
-  
-  const dataset = dataSets[type] || dataSets.region;
-  
-  return {
-    labels: dataset.labels,
-    datasets: [{
-      data: dataset.data,
-      backgroundColor: dataset.colors,
-      borderWidth: 0,
-      borderRadius: 8
-    }]
-  };
-}
-
-function updateChartLegend(data) {
-  const legendContainer = document.getElementById('chartLegend');
-  if (!legendContainer) return;
-  
-  const colors = data.datasets[0].backgroundColor;
-  const labels = data.labels;
-  
-  let legendHTML = '';
-  
-  labels.forEach((label, index) => {
-    const color = colors[index];
-    const value = data.datasets[0].data[index];
+  // ========== SIMPLIFIED SALES DASHBOARD CHARTS ==========
+  function initializeSalesCharts() {
+    console.log("Initializing simplified sales charts...");
     
-    legendHTML += `
-      <div class="legend-item">
-        <span class="legend-color" style="background: ${color}"></span>
-        <span class="legend-label">${label}</span>
-        <span class="legend-value">${value}%</span>
-      </div>
-    `;
-  });
-  
-  legendContainer.innerHTML = legendHTML;
-}
-
-function setupChartSwitcher() {
-  // Dots navigation
-  document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
-    dot.addEventListener('click', function() {
-      const chartType = this.getAttribute('data-chart');
-      switchChart(chartType);
-      
-      // Update active dot
-      document.querySelectorAll('.carousel-dots .dot').forEach(d => {
-        d.classList.remove('active');
-      });
-      this.classList.add('active');
-      
-      // Update dropdown
-      const select = document.getElementById('contributionType');
-      if (select) select.value = chartType;
-    });
-  });
-  
-  // Prev/Next buttons
-  const prevBtn = document.getElementById('prevChartBtn');
-  const nextBtn = document.getElementById('nextChartBtn');
-  
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      const types = ['region', 'product', 'client'];
-      const currentIndex = types.indexOf(currentChartType);
-      const prevIndex = (currentIndex - 1 + types.length) % types.length;
-      switchChart(types[prevIndex]);
-    });
+    // Initialize Line Chart
+    initializeLineChart();
+    
+    // Initialize Single Contribution Chart
+    initializeContributionChart();
+    
+    // Initialize Funnel Details
+    setupFunnelDetails();
   }
-  
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      const types = ['region', 'product', 'client'];
-      const currentIndex = types.indexOf(currentChartType);
-      const nextIndex = (currentIndex + 1) % types.length;
-      switchChart(types[nextIndex]);
-    });
-  }
-  
-  // Dropdown selector
-  const select = document.getElementById('contributionType');
-  if (select) {
-    select.addEventListener('change', function() {
-      switchChart(this.value);
-    });
-  }
-}
 
-function switchChart(type) {
-  if (!contributionChart || currentChartType === type) return;
-  
-  const newData = getChartData(type);
-  
-  // Update chart data
-  contributionChart.data.labels = newData.labels;
-  contributionChart.data.datasets[0].data = newData.datasets[0].data;
-  contributionChart.data.datasets[0].backgroundColor = newData.datasets[0].backgroundColor;
-  
-  // Update chart
-  contributionChart.update();
-  
-  // Update legend
-  updateChartLegend(newData);
-  
-  // Update current type
-  currentChartType = type;
-  
-  // Update active dot
-  document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
-    dot.classList.remove('active');
-    if (dot.getAttribute('data-chart') === type) {
-      dot.classList.add('active');
-    }
-  });
-  
-  console.log(`Switched to ${type} chart`);
-}
-
-// Call this when sales screen is shown
-function loadSalesDashboard() {
-  // Small delay to ensure DOM is ready
-  setTimeout(() => {
-    initializeSalesCharts();
-  }, 300);
-}
-
-// SIMPLIFIED VERSION - Initialize all pie charts at once
-function initializePieCharts() {
-  console.log("Initializing pie charts...");
-  
-  // Region Pie Chart
-  const regionCanvas = document.getElementById('regionPieCanvas');
-  if (regionCanvas) {
-    const regionCtx = regionCanvas.getContext('2d');
-    new Chart(regionCtx, {
-      type: 'doughnut',
+  function initializeLineChart() {
+    const lineChartCanvas = document.getElementById('lineChartCanvas');
+    if (!lineChartCanvas) return;
+    
+    const lineCtx = lineChartCanvas.getContext('2d');
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr'];
+    const targetData = [10, 15, 20, 15];
+    const achievedData = [8, 14, 18, 12];
+    
+    new Chart(lineCtx, {
+      type: 'line',
       data: {
+        labels: months,
+        datasets: [
+          {
+            label: 'Target',
+            data: targetData,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: 'Achieved',
+            data: achievedData,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return `₹${value}L`;
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    console.log("Line chart initialized");
+  }
+
+  // Single chart for all contribution types
+  let contributionChart = null;
+  let currentChartType = 'region';
+
+  function initializeContributionChart() {
+    const chartCanvas = document.getElementById('contributionChart');
+    if (!chartCanvas) {
+      console.error("Contribution chart canvas not found!");
+      return;
+    }
+    
+    const ctx = chartCanvas.getContext('2d');
+    
+    // Initial chart data (Region)
+    const data = getChartData('region');
+    
+    contributionChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: data,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.label}: ${context.raw}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Update legend
+    updateChartLegend(data);
+    
+    // Setup chart switching
+    setupChartSwitcher();
+    
+    console.log("Contribution chart initialized");
+  }
+
+  function getChartData(type) {
+    const dataSets = {
+      region: {
         labels: ['North', 'South', 'West', 'East'],
-        datasets: [{
-          data: [42, 28, 18, 12],
-          backgroundColor: [
-            '#3b82f6',
-            '#8b5cf6',
-            '#f59e0b',
-            '#14b8a6'
-          ],
-          borderWidth: 0,
-          borderRadius: 8
-        }]
+        data: [42, 28, 18, 12],
+        colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
+        labelsFull: ['North Region', 'South Region', 'West Region', 'East Region']
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            display: false
-          }
-        }
-      }
-    });
-    console.log("Region pie chart initialized");
-  }
-  
-  // Product Pie Chart
-  const productCanvas = document.getElementById('productPieCanvas');
-  if (productCanvas) {
-    const productCtx = productCanvas.getContext('2d');
-    new Chart(productCtx, {
-      type: 'doughnut',
-      data: {
+      product: {
         labels: ['Software', 'Services', 'Hardware', 'Support'],
-        datasets: [{
-          data: [45, 30, 15, 10],
-          backgroundColor: [
-            '#3b82f6',
-            '#8b5cf6',
-            '#f59e0b',
-            '#14b8a6'
-          ],
-          borderWidth: 0,
-          borderRadius: 8
-        }]
+        data: [45, 30, 15, 10],
+        colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
+        labelsFull: ['Software Products', 'Services', 'Hardware', 'Support Services']
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            display: false
-          }
-        }
-      }
-    });
-    console.log("Product pie chart initialized");
-  }
-  
-  // Client Type Pie Chart
-  const clientCanvas = document.getElementById('clientPieCanvas');
-  if (clientCanvas) {
-    const clientCtx = clientCanvas.getContext('2d');
-    new Chart(clientCtx, {
-      type: 'doughnut',
-      data: {
+      client: {
         labels: ['Enterprise', 'SMB', 'Startup'],
-        datasets: [{
-          data: [52, 38, 10],
-          backgroundColor: [
-            '#3b82f6',
-            '#8b5cf6',
-            '#f59e0b'
-          ],
-          borderWidth: 0,
-          borderRadius: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '70%',
-        plugins: {
-          legend: {
-            display: false
-          }
-        }
+        data: [52, 38, 10],
+        colors: ['#3b82f6', '#8b5cf6', '#f59e0b'],
+        labelsFull: ['Enterprise Clients', 'Small & Medium Business', 'Startups']
       }
-    });
-    console.log("Client pie chart initialized");
+    };
+    
+    const dataset = dataSets[type] || dataSets.region;
+    
+    return {
+      labels: dataset.labels,
+      datasets: [{
+        data: dataset.data,
+        backgroundColor: dataset.colors,
+        borderWidth: 0,
+        borderRadius: 8
+      }]
+    };
   }
-}
 
-// SIMPLIFIED VERSION - Chart switching
-function setupSimpleChartSwitching() {
-  console.log("Setting up simple chart switching...");
-  
-  const pieCharts = document.querySelectorAll('.pie-chart');
-  const dots = document.querySelectorAll('.carousel-dots .dot');
-  const prevBtn = document.querySelector('.carousel-nav-btn.prev');
-  const nextBtn = document.querySelector('.carousel-nav-btn.next');
-  const select = document.getElementById('contributionType');
-  
-  let currentIndex = 0;
-  
-  // Function to show chart
-  function showChart(index) {
-    // Hide all charts
-    pieCharts.forEach(chart => {
-      chart.style.display = 'none';
-      chart.classList.remove('active');
+  function updateChartLegend(data) {
+    const legendContainer = document.getElementById('chartLegend');
+    if (!legendContainer) return;
+    
+    const colors = data.datasets[0].backgroundColor;
+    const labels = data.labels;
+    
+    let legendHTML = '';
+    
+    labels.forEach((label, index) => {
+      const color = colors[index];
+      const value = data.datasets[0].data[index];
+      
+      legendHTML += `
+        <div class="legend-item">
+          <span class="legend-color" style="background: ${color}"></span>
+          <span class="legend-label">${label}</span>
+          <span class="legend-value">${value}%</span>
+        </div>
+      `;
     });
     
-    // Show selected chart
-    if (pieCharts[index]) {
-      pieCharts[index].style.display = 'flex';
-      pieCharts[index].classList.add('active');
+    legendContainer.innerHTML = legendHTML;
+  }
+
+  function setupChartSwitcher() {
+    // Dots navigation
+    document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
+      dot.addEventListener('click', function() {
+        const chartType = this.getAttribute('data-chart');
+        switchChart(chartType);
+        
+        // Update active dot
+        document.querySelectorAll('.carousel-dots .dot').forEach(d => {
+          d.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        // Update dropdown
+        const select = document.getElementById('contributionType');
+        if (select) select.value = chartType;
+      });
+    });
+    
+    // Prev/Next buttons
+    const prevBtn = document.getElementById('prevChartBtn');
+    const nextBtn = document.getElementById('nextChartBtn');
+    
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        const types = ['region', 'product', 'client'];
+        const currentIndex = types.indexOf(currentChartType);
+        const prevIndex = (currentIndex - 1 + types.length) % types.length;
+        switchChart(types[prevIndex]);
+      });
     }
     
-    // Update dots
-    dots.forEach((dot, i) => {
-      dot.classList.toggle('active', i === index);
-    });
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        const types = ['region', 'product', 'client'];
+        const currentIndex = types.indexOf(currentChartType);
+        const nextIndex = (currentIndex + 1) % types.length;
+        switchChart(types[nextIndex]);
+      });
+    }
     
-    // Update select dropdown
+    // Dropdown selector
+    const select = document.getElementById('contributionType');
     if (select) {
-      const values = ['region', 'product', 'client'];
-      select.value = values[index] || 'region';
+      select.addEventListener('change', function() {
+        switchChart(this.value);
+      });
     }
-    
-    currentIndex = index;
-    console.log(`Showing chart ${index + 1}`);
   }
-  
-  // Dot click events
-  dots.forEach((dot, index) => {
-    dot.addEventListener('click', () => {
-      showChart(index);
-    });
-  });
-  
-  // Previous button
-  if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
-      const newIndex = (currentIndex - 1 + pieCharts.length) % pieCharts.length;
-      showChart(newIndex);
-    });
-  }
-  
-  // Next button
-  if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
-      const newIndex = (currentIndex + 1) % pieCharts.length;
-      showChart(newIndex);
-    });
-  }
-  
-  // Select dropdown change
-  if (select) {
-    select.addEventListener('change', function() {
-      const value = this.value;
-      const indexMap = {
-        'region': 0,
-        'product': 1,
-        'client': 2
-      };
-      const index = indexMap[value] || 0;
-      showChart(index);
-    });
-  }
-  
-  return showChart; // Return function for external use
-}
 
-// Show specific chart (exposed for debugging)
-function showChart(index) {
-  const pieCharts = document.querySelectorAll('.pie-chart');
-  const dots = document.querySelectorAll('.carousel-dots .dot');
-  const select = document.getElementById('contributionType');
-  
-  // Hide all charts
-  pieCharts.forEach(chart => {
-    chart.style.display = 'none';
-    chart.classList.remove('active');
-  });
-  
-  // Show selected chart
-  if (pieCharts[index]) {
-    pieCharts[index].style.display = 'flex';
-    pieCharts[index].classList.add('active');
-  }
-  
-  // Update dots
-  dots.forEach((dot, i) => {
-    dot.classList.toggle('active', i === index);
-  });
-  
-  // Update select dropdown
-  if (select) {
-    const values = ['region', 'product', 'client'];
-    select.value = values[index] || 'region';
-  }
-  
-  console.log(`Manually showing chart ${index + 1}`);
-}
-
-  function setupChartSwitching() {
-    console.log("Setting up chart switching...");
+  function switchChart(type) {
+    if (!contributionChart || currentChartType === type) return;
     
-    // Contribution Type Selector (Pie Charts)
-    const contributionType = document.getElementById('contributionType');
-    const pieCharts = document.querySelectorAll('.pie-chart');
-    const carouselDots = document.querySelectorAll('.carousel-dots .dot');
-    const carouselPrev = document.querySelector('.carousel-nav-btn.prev');
-    const carouselNext = document.querySelector('.carousel-nav-btn.next');
+    const newData = getChartData(type);
     
-    console.log("Found elements:", {
-      contributionType: !!contributionType,
-      pieCharts: pieCharts.length,
-      carouselDots: carouselDots.length,
-      carouselPrev: !!carouselPrev,
-      carouselNext: !!carouselNext
-    });
+    // Update chart data
+    contributionChart.data.labels = newData.labels;
+    contributionChart.data.datasets[0].data = newData.datasets[0].data;
+    contributionChart.data.datasets[0].backgroundColor = newData.datasets[0].backgroundColor;
     
-    let currentPieIndex = 0;
+    // Update chart
+    contributionChart.update();
     
-    // Function to show specific chart
-    function showChart(index) {
-      console.log(`Showing chart at index: ${index}`);
-      
-      pieCharts.forEach((chart, i) => {
-        if (i === index) {
-          chart.style.display = 'block';
-          chart.classList.add('active');
-          // Re-render chart if needed
-          const canvas = chart.querySelector('canvas');
-          if (canvas) {
-            canvas.style.display = 'block';
-          }
-        } else {
-          chart.style.display = 'none';
-          chart.classList.remove('active');
-        }
-      });
-      
-      // Update dots
-      carouselDots.forEach((dot, i) => {
-        dot.classList.toggle('active', i === index);
-      });
-      
-      // Update dropdown
-      const chartTypes = ['region', 'product', 'client'];
-      if (contributionType && chartTypes[index]) {
-        contributionType.value = chartTypes[index];
+    // Update legend
+    updateChartLegend(newData);
+    
+    // Update current type
+    currentChartType = type;
+    
+    // Update active dot
+    document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
+      dot.classList.remove('active');
+      if (dot.getAttribute('data-chart') === type) {
+        dot.classList.add('active');
       }
-      
-      currentPieIndex = index;
-    }
-    
-    // Initialize - show first chart
-    if (pieCharts.length > 0) {
-      showChart(0);
-    }
-    
-    // Dropdown change handler
-    if (contributionType) {
-      contributionType.addEventListener('change', function() {
-        const selectedValue = this.value;
-        console.log('Contribution type changed to:', selectedValue);
-        
-        const chartIndexMap = {
-          'region': 0,
-          'product': 1,
-          'client': 2
-        };
-        
-        const index = chartIndexMap[selectedValue];
-        if (index !== undefined) {
-          showChart(index);
-        }
-      });
-    }
-    
-    // Carousel Navigation
-    if (carouselPrev) {
-      carouselPrev.addEventListener('click', () => {
-        const newIndex = (currentPieIndex - 1 + pieCharts.length) % pieCharts.length;
-        showChart(newIndex);
-      });
-    }
-    
-    if (carouselNext) {
-      carouselNext.addEventListener('click', () => {
-        const newIndex = (currentPieIndex + 1) % pieCharts.length;
-        showChart(newIndex);
-      });
-    }
-    
-    // Carousel Dots
-    carouselDots.forEach((dot, index) => {
-      dot.addEventListener('click', () => {
-        showChart(index);
-      });
     });
+    
+    console.log(`Switched to ${type} chart`);
   }
 
   // ========== DEBUG FUNCTION ==========
@@ -3476,5 +3542,5 @@ function showChart(index) {
 
   showScreen('dashboard');
 
-  console.log('SalesBuddy fully loaded with FIXED Contribution Breakdown Charts!');
+  console.log('SalesBuddy fully loaded with Funnel Details Table!');
 });
