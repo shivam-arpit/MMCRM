@@ -1,7 +1,7 @@
-// script.js - UPDATED VERSION with Charts and Complaint Form
+// script.js - UPDATED VERSION with FIXED Contribution Breakdown Charts
 
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("SalesBuddy Application Initialized");
+  console.log("SalesBuddy Application Initialized - with Fixed Charts");
 
   // ========== SCREEN MANAGEMENT ==========
   const screens = {
@@ -60,24 +60,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       // Load data for specific screens
-      if (screenId === 'ideas') {
-        loadInsights();
-      } else if (screenId === 'planner') {
-        loadPlannerEvents();
-        updateCalendar(new Date());
-      } else if (screenId === 'notifications') {
-        updateNotificationCount();
-      } else if (screenId === 'visits') {
-        loadVisitsData();
-      } else if (screenId === 'visitForm') {
-        autoGenerateVisitDateTime();
-      } else if (screenId === 'visitDetail') {
-        updateEndVisitButtonVisibility();
-      } else if (screenId === 'complaintForm') {
-        autoFillComplaintContactInfo();
-      } else if (screenId === 'sales') {
-        // Initialize charts when sales screen is shown
-        setTimeout(initializeSalesCharts, 100);
+      if (screenId === 'sales') {
+    // Initialize charts when sales screen is shown
+    setTimeout(() => {
+      initializeSalesCharts();
+    }, 100);
+  
       }
     }
   };
@@ -2824,296 +2812,649 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ========== SALES DASHBOARD CHARTS ==========
-  function initializeSalesCharts() {
-    console.log("Initializing sales charts...");
-    
-    // Initialize Line Chart (Target vs Achievement)
-    const lineChartCanvas = document.getElementById('lineChartCanvas');
-    if (lineChartCanvas) {
-      const lineCtx = lineChartCanvas.getContext('2d');
-      
-      // Sample monthly data
-      const months = ['Jan', 'Feb', 'Mar', 'Apr'];
-      const targetData = [10, 15, 20, 15]; // in Lakhs
-      const achievedData = [8, 14, 18, 12]; // in Lakhs
-      
-      new Chart(lineCtx, {
-        type: 'line',
-        data: {
-          labels: months,
-          datasets: [
-            {
-              label: 'Target',
-              data: targetData,
-              borderColor: '#2563eb',
-              backgroundColor: 'rgba(37, 99, 235, 0.1)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'Achieved',
-              data: achievedData,
-              borderColor: '#22c55e',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              display: false // We have custom legend
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  return `${context.dataset.label}: ₹${context.raw}L`;
-                }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: function(value) {
-                  return `₹${value}L`;
-                }
-              },
-              title: {
-                display: true,
-                text: 'Amount (in Lakhs)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Month'
-              }
-            }
-          }
-        }
-      });
-    }
-    
-    // Initialize Region Pie Chart
-    const regionPieCanvas = document.getElementById('regionPieCanvas');
-    if (regionPieCanvas) {
-      const regionCtx = regionPieCanvas.getContext('2d');
-      
-      new Chart(regionCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['North', 'South', 'West', 'East'],
-          datasets: [{
-            data: [42, 28, 18, 12],
-            backgroundColor: [
-              '#3b82f6',
-              '#8b5cf6',
-              '#f59e0b',
-              '#14b8a6'
-            ],
-            borderWidth: 0,
-            borderRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '70%',
-          plugins: {
-            legend: {
-              display: false // We have custom legend
-            },
-            tooltip: {
-              callbacks: {
-                label: function(context) {
-                  return `${context.label}: ${context.raw}%`;
-                }
-              }
-            }
-          }
-        }
-      });
-    }
-    
-    // Initialize Product Pie Chart
-    const productPieCanvas = document.getElementById('productPieCanvas');
-    if (productPieCanvas) {
-      const productCtx = productPieCanvas.getContext('2d');
-      
-      new Chart(productCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Software', 'Services', 'Hardware', 'Support'],
-          datasets: [{
-            data: [45, 30, 15, 10],
-            backgroundColor: [
-              '#3b82f6',
-              '#8b5cf6',
-              '#f59e0b',
-              '#14b8a6'
-            ],
-            borderWidth: 0,
-            borderRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '70%',
-          plugins: {
-            legend: {
-              display: false
-            }
-          }
-        }
-      });
-    }
-    
-    // Initialize Client Type Pie Chart
-    const clientPieCanvas = document.getElementById('clientPieCanvas');
-    if (clientPieCanvas) {
-      const clientCtx = clientPieCanvas.getContext('2d');
-      
-      new Chart(clientCtx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Enterprise', 'SMB', 'Startup'],
-          datasets: [{
-            data: [52, 38, 10],
-            backgroundColor: [
-              '#3b82f6',
-              '#8b5cf6',
-              '#f59e0b'
-            ],
-            borderWidth: 0,
-            borderRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '70%',
-          plugins: {
-            legend: {
-              display: false
-            }
-          }
-        }
-      });
-    }
-    
-    // Initialize chart switching functionality
-    setupChartSwitching();
-  }
+// ========== SIMPLIFIED SALES DASHBOARD CHARTS ==========
+function initializeSalesCharts() {
+  console.log("Initializing simplified sales charts...");
+  
+  // Initialize Line Chart
+  initializeLineChart();
+  
+  // Initialize Single Contribution Chart
+  initializeContributionChart();
+}
 
-  function setupChartSwitching() {
-  console.log("Setting up chart switching...");
+function initializeLineChart() {
+  const lineChartCanvas = document.getElementById('lineChartCanvas');
+  if (!lineChartCanvas) return;
   
-  // Contribution Type Selector (Pie Charts)
-  const contributionType = document.getElementById('contributionType');
-  const pieCharts = document.querySelectorAll('.pie-chart');
-  const carouselDots = document.querySelectorAll('.carousel-dots .dot');
-  const carouselPrev = document.querySelector('.carousel-nav-btn.prev');
-  const carouselNext = document.querySelector('.carousel-nav-btn.next');
+  const lineCtx = lineChartCanvas.getContext('2d');
   
-  console.log("Found elements:", {
-    contributionType: !!contributionType,
-    pieCharts: pieCharts.length,
-    carouselDots: carouselDots.length,
-    carouselPrev: !!carouselPrev,
-    carouselNext: !!carouselNext
+  const months = ['Jan', 'Feb', 'Mar', 'Apr'];
+  const targetData = [10, 15, 20, 15];
+  const achievedData = [8, 14, 18, 12];
+  
+  new Chart(lineCtx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Target',
+          data: targetData,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37, 99, 235, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: 'Achieved',
+          data: achievedData,
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return `₹${value}L`;
+            }
+          }
+        }
+      }
+    }
   });
   
-  let currentPieIndex = 0;
-  
-  // Show only the first pie chart by default
-  if (pieCharts.length > 0) {
-    pieCharts.forEach((chart, index) => {
-      chart.style.display = index === 0 ? 'block' : 'none';
-      chart.classList.toggle('active', index === 0);
-    });
+  console.log("Line chart initialized");
+}
+
+// Single chart for all contribution types
+let contributionChart = null;
+let currentChartType = 'region';
+
+function initializeContributionChart() {
+  const chartCanvas = document.getElementById('contributionChart');
+  if (!chartCanvas) {
+    console.error("Contribution chart canvas not found!");
+    return;
   }
   
-  if (contributionType) {
-    contributionType.addEventListener('change', function() {
-      const selectedValue = this.value;
-      console.log('Contribution type changed to:', selectedValue);
-      
-      pieCharts.forEach((chart, index) => {
-        chart.style.display = 'none';
-        chart.classList.remove('active');
-        if (chart.id === `${selectedValue}Pie`) {
-          chart.style.display = 'block';
-          chart.classList.add('active');
-          currentPieIndex = index;
-          updateCarouselDots();
+  const ctx = chartCanvas.getContext('2d');
+  
+  // Initial chart data (Region)
+  const data = getChartData('region');
+  
+  contributionChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.label}: ${context.raw}%`;
+            }
+          }
         }
+      }
+    }
+  });
+  
+  // Update legend
+  updateChartLegend(data);
+  
+  // Setup chart switching
+  setupChartSwitcher();
+  
+  console.log("Contribution chart initialized");
+}
+
+function getChartData(type) {
+  const dataSets = {
+    region: {
+      labels: ['North', 'South', 'West', 'East'],
+      data: [42, 28, 18, 12],
+      colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
+      labelsFull: ['North Region', 'South Region', 'West Region', 'East Region']
+    },
+    product: {
+      labels: ['Software', 'Services', 'Hardware', 'Support'],
+      data: [45, 30, 15, 10],
+      colors: ['#3b82f6', '#8b5cf6', '#f59e0b', '#14b8a6'],
+      labelsFull: ['Software Products', 'Services', 'Hardware', 'Support Services']
+    },
+    client: {
+      labels: ['Enterprise', 'SMB', 'Startup'],
+      data: [52, 38, 10],
+      colors: ['#3b82f6', '#8b5cf6', '#f59e0b'],
+      labelsFull: ['Enterprise Clients', 'Small & Medium Business', 'Startups']
+    }
+  };
+  
+  const dataset = dataSets[type] || dataSets.region;
+  
+  return {
+    labels: dataset.labels,
+    datasets: [{
+      data: dataset.data,
+      backgroundColor: dataset.colors,
+      borderWidth: 0,
+      borderRadius: 8
+    }]
+  };
+}
+
+function updateChartLegend(data) {
+  const legendContainer = document.getElementById('chartLegend');
+  if (!legendContainer) return;
+  
+  const colors = data.datasets[0].backgroundColor;
+  const labels = data.labels;
+  
+  let legendHTML = '';
+  
+  labels.forEach((label, index) => {
+    const color = colors[index];
+    const value = data.datasets[0].data[index];
+    
+    legendHTML += `
+      <div class="legend-item">
+        <span class="legend-color" style="background: ${color}"></span>
+        <span class="legend-label">${label}</span>
+        <span class="legend-value">${value}%</span>
+      </div>
+    `;
+  });
+  
+  legendContainer.innerHTML = legendHTML;
+}
+
+function setupChartSwitcher() {
+  // Dots navigation
+  document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
+    dot.addEventListener('click', function() {
+      const chartType = this.getAttribute('data-chart');
+      switchChart(chartType);
+      
+      // Update active dot
+      document.querySelectorAll('.carousel-dots .dot').forEach(d => {
+        d.classList.remove('active');
       });
+      this.classList.add('active');
+      
+      // Update dropdown
+      const select = document.getElementById('contributionType');
+      if (select) select.value = chartType;
+    });
+  });
+  
+  // Prev/Next buttons
+  const prevBtn = document.getElementById('prevChartBtn');
+  const nextBtn = document.getElementById('nextChartBtn');
+  
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const types = ['region', 'product', 'client'];
+      const currentIndex = types.indexOf(currentChartType);
+      const prevIndex = (currentIndex - 1 + types.length) % types.length;
+      switchChart(types[prevIndex]);
     });
   }
   
-  // Carousel Navigation
-  if (carouselPrev && carouselNext) {
-    carouselPrev.addEventListener('click', () => {
-      currentPieIndex = (currentPieIndex - 1 + pieCharts.length) % pieCharts.length;
-      console.log('Previous clicked, index:', currentPieIndex);
-      updateActivePieChart();
-    });
-    
-    carouselNext.addEventListener('click', () => {
-      currentPieIndex = (currentPieIndex + 1) % pieCharts.length;
-      console.log('Next clicked, index:', currentPieIndex);
-      updateActivePieChart();
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const types = ['region', 'product', 'client'];
+      const currentIndex = types.indexOf(currentChartType);
+      const nextIndex = (currentIndex + 1) % types.length;
+      switchChart(types[nextIndex]);
     });
   }
   
-  // Carousel Dots
-  if (carouselDots.length > 0) {
-    carouselDots.forEach((dot, index) => {
-      dot.addEventListener('click', () => {
-        console.log('Dot clicked:', index);
-        currentPieIndex = index;
-        updateActivePieChart();
-      });
+  // Dropdown selector
+  const select = document.getElementById('contributionType');
+  if (select) {
+    select.addEventListener('change', function() {
+      switchChart(this.value);
     });
   }
+}
+
+function switchChart(type) {
+  if (!contributionChart || currentChartType === type) return;
   
-  function updateActivePieChart() {
-    console.log('Updating active pie chart to index:', currentPieIndex);
-    
-    pieCharts.forEach((chart, index) => {
-      chart.style.display = index === currentPieIndex ? 'block' : 'none';
-      chart.classList.toggle('active', index === currentPieIndex);
+  const newData = getChartData(type);
+  
+  // Update chart data
+  contributionChart.data.labels = newData.labels;
+  contributionChart.data.datasets[0].data = newData.datasets[0].data;
+  contributionChart.data.datasets[0].backgroundColor = newData.datasets[0].backgroundColor;
+  
+  // Update chart
+  contributionChart.update();
+  
+  // Update legend
+  updateChartLegend(newData);
+  
+  // Update current type
+  currentChartType = type;
+  
+  // Update active dot
+  document.querySelectorAll('.carousel-dots .dot').forEach(dot => {
+    dot.classList.remove('active');
+    if (dot.getAttribute('data-chart') === type) {
+      dot.classList.add('active');
+    }
+  });
+  
+  console.log(`Switched to ${type} chart`);
+}
+
+// Call this when sales screen is shown
+function loadSalesDashboard() {
+  // Small delay to ensure DOM is ready
+  setTimeout(() => {
+    initializeSalesCharts();
+  }, 300);
+}
+
+// SIMPLIFIED VERSION - Initialize all pie charts at once
+function initializePieCharts() {
+  console.log("Initializing pie charts...");
+  
+  // Region Pie Chart
+  const regionCanvas = document.getElementById('regionPieCanvas');
+  if (regionCanvas) {
+    const regionCtx = regionCanvas.getContext('2d');
+    new Chart(regionCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['North', 'South', 'West', 'East'],
+        datasets: [{
+          data: [42, 28, 18, 12],
+          backgroundColor: [
+            '#3b82f6',
+            '#8b5cf6',
+            '#f59e0b',
+            '#14b8a6'
+          ],
+          borderWidth: 0,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+    console.log("Region pie chart initialized");
+  }
+  
+  // Product Pie Chart
+  const productCanvas = document.getElementById('productPieCanvas');
+  if (productCanvas) {
+    const productCtx = productCanvas.getContext('2d');
+    new Chart(productCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Software', 'Services', 'Hardware', 'Support'],
+        datasets: [{
+          data: [45, 30, 15, 10],
+          backgroundColor: [
+            '#3b82f6',
+            '#8b5cf6',
+            '#f59e0b',
+            '#14b8a6'
+          ],
+          borderWidth: 0,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+    console.log("Product pie chart initialized");
+  }
+  
+  // Client Type Pie Chart
+  const clientCanvas = document.getElementById('clientPieCanvas');
+  if (clientCanvas) {
+    const clientCtx = clientCanvas.getContext('2d');
+    new Chart(clientCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Enterprise', 'SMB', 'Startup'],
+        datasets: [{
+          data: [52, 38, 10],
+          backgroundColor: [
+            '#3b82f6',
+            '#8b5cf6',
+            '#f59e0b'
+          ],
+          borderWidth: 0,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+    console.log("Client pie chart initialized");
+  }
+}
+
+// SIMPLIFIED VERSION - Chart switching
+function setupSimpleChartSwitching() {
+  console.log("Setting up simple chart switching...");
+  
+  const pieCharts = document.querySelectorAll('.pie-chart');
+  const dots = document.querySelectorAll('.carousel-dots .dot');
+  const prevBtn = document.querySelector('.carousel-nav-btn.prev');
+  const nextBtn = document.querySelector('.carousel-nav-btn.next');
+  const select = document.getElementById('contributionType');
+  
+  let currentIndex = 0;
+  
+  // Function to show chart
+  function showChart(index) {
+    // Hide all charts
+    pieCharts.forEach(chart => {
+      chart.style.display = 'none';
+      chart.classList.remove('active');
     });
     
-    // Update dropdown
-    const pieTypes = ['region', 'product', 'client'];
-    if (contributionType) {
-      contributionType.value = pieTypes[currentPieIndex];
-      console.log('Updated dropdown to:', pieTypes[currentPieIndex]);
+    // Show selected chart
+    if (pieCharts[index]) {
+      pieCharts[index].style.display = 'flex';
+      pieCharts[index].classList.add('active');
     }
     
-    updateCarouselDots();
-  }
-  
-  function updateCarouselDots() {
-    carouselDots.forEach((dot, index) => {
-      dot.classList.toggle('active', index === currentPieIndex);
+    // Update dots
+    dots.forEach((dot, i) => {
+      dot.classList.toggle('active', i === index);
     });
-    console.log('Updated carousel dots');
+    
+    // Update select dropdown
+    if (select) {
+      const values = ['region', 'product', 'client'];
+      select.value = values[index] || 'region';
+    }
+    
+    currentIndex = index;
+    console.log(`Showing chart ${index + 1}`);
   }
   
-  // Initialize
-  updateCarouselDots();
+  // Dot click events
+  dots.forEach((dot, index) => {
+    dot.addEventListener('click', () => {
+      showChart(index);
+    });
+  });
+  
+  // Previous button
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const newIndex = (currentIndex - 1 + pieCharts.length) % pieCharts.length;
+      showChart(newIndex);
+    });
+  }
+  
+  // Next button
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const newIndex = (currentIndex + 1) % pieCharts.length;
+      showChart(newIndex);
+    });
+  }
+  
+  // Select dropdown change
+  if (select) {
+    select.addEventListener('change', function() {
+      const value = this.value;
+      const indexMap = {
+        'region': 0,
+        'product': 1,
+        'client': 2
+      };
+      const index = indexMap[value] || 0;
+      showChart(index);
+    });
+  }
+  
+  return showChart; // Return function for external use
 }
+
+// Show specific chart (exposed for debugging)
+function showChart(index) {
+  const pieCharts = document.querySelectorAll('.pie-chart');
+  const dots = document.querySelectorAll('.carousel-dots .dot');
+  const select = document.getElementById('contributionType');
+  
+  // Hide all charts
+  pieCharts.forEach(chart => {
+    chart.style.display = 'none';
+    chart.classList.remove('active');
+  });
+  
+  // Show selected chart
+  if (pieCharts[index]) {
+    pieCharts[index].style.display = 'flex';
+    pieCharts[index].classList.add('active');
+  }
+  
+  // Update dots
+  dots.forEach((dot, i) => {
+    dot.classList.toggle('active', i === index);
+  });
+  
+  // Update select dropdown
+  if (select) {
+    const values = ['region', 'product', 'client'];
+    select.value = values[index] || 'region';
+  }
+  
+  console.log(`Manually showing chart ${index + 1}`);
+}
+
+  function setupChartSwitching() {
+    console.log("Setting up chart switching...");
+    
+    // Contribution Type Selector (Pie Charts)
+    const contributionType = document.getElementById('contributionType');
+    const pieCharts = document.querySelectorAll('.pie-chart');
+    const carouselDots = document.querySelectorAll('.carousel-dots .dot');
+    const carouselPrev = document.querySelector('.carousel-nav-btn.prev');
+    const carouselNext = document.querySelector('.carousel-nav-btn.next');
+    
+    console.log("Found elements:", {
+      contributionType: !!contributionType,
+      pieCharts: pieCharts.length,
+      carouselDots: carouselDots.length,
+      carouselPrev: !!carouselPrev,
+      carouselNext: !!carouselNext
+    });
+    
+    let currentPieIndex = 0;
+    
+    // Function to show specific chart
+    function showChart(index) {
+      console.log(`Showing chart at index: ${index}`);
+      
+      pieCharts.forEach((chart, i) => {
+        if (i === index) {
+          chart.style.display = 'block';
+          chart.classList.add('active');
+          // Re-render chart if needed
+          const canvas = chart.querySelector('canvas');
+          if (canvas) {
+            canvas.style.display = 'block';
+          }
+        } else {
+          chart.style.display = 'none';
+          chart.classList.remove('active');
+        }
+      });
+      
+      // Update dots
+      carouselDots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+      });
+      
+      // Update dropdown
+      const chartTypes = ['region', 'product', 'client'];
+      if (contributionType && chartTypes[index]) {
+        contributionType.value = chartTypes[index];
+      }
+      
+      currentPieIndex = index;
+    }
+    
+    // Initialize - show first chart
+    if (pieCharts.length > 0) {
+      showChart(0);
+    }
+    
+    // Dropdown change handler
+    if (contributionType) {
+      contributionType.addEventListener('change', function() {
+        const selectedValue = this.value;
+        console.log('Contribution type changed to:', selectedValue);
+        
+        const chartIndexMap = {
+          'region': 0,
+          'product': 1,
+          'client': 2
+        };
+        
+        const index = chartIndexMap[selectedValue];
+        if (index !== undefined) {
+          showChart(index);
+        }
+      });
+    }
+    
+    // Carousel Navigation
+    if (carouselPrev) {
+      carouselPrev.addEventListener('click', () => {
+        const newIndex = (currentPieIndex - 1 + pieCharts.length) % pieCharts.length;
+        showChart(newIndex);
+      });
+    }
+    
+    if (carouselNext) {
+      carouselNext.addEventListener('click', () => {
+        const newIndex = (currentPieIndex + 1) % pieCharts.length;
+        showChart(newIndex);
+      });
+    }
+    
+    // Carousel Dots
+    carouselDots.forEach((dot, index) => {
+      dot.addEventListener('click', () => {
+        showChart(index);
+      });
+    });
+  }
+
+  // ========== DEBUG FUNCTION ==========
+  function debugChartSystem() {
+    console.log("=== DEBUG: Chart System ===");
+    
+    // Check if we're on sales screen
+    const salesScreen = document.getElementById('salesScreen');
+    if (!salesScreen || !salesScreen.classList.contains('active')) {
+      console.log("Not on sales screen. Current screen:", currentScreen);
+      return;
+    }
+    
+    // Check pie charts
+    const pieCharts = document.querySelectorAll('.pie-chart');
+    console.log(`Found ${pieCharts.length} pie charts on sales screen:`);
+    
+    pieCharts.forEach((chart, i) => {
+      const canvas = chart.querySelector('canvas');
+      const isActive = chart.classList.contains('active');
+      console.log(`Chart ${i} (${chart.id}):`, {
+        display: window.getComputedStyle(chart).display,
+        active: isActive,
+        hasCanvas: !!canvas,
+        canvasWidth: canvas ? canvas.width : 'no canvas'
+      });
+    });
+    
+    // Check select dropdown
+    const select = document.getElementById('contributionType');
+    console.log("Contribution select element:", {
+      exists: !!select,
+      value: select ? select.value : 'none',
+      options: select ? Array.from(select.options).map(o => ({value: o.value, text: o.text})) : []
+    });
+    
+    // Check carousel
+    const dots = document.querySelectorAll('.carousel-dots .dot');
+    console.log(`Carousel dots: ${dots.length} found`);
+    
+    dots.forEach((dot, i) => {
+      console.log(`Dot ${i}:`, {
+        active: dot.classList.contains('active'),
+        index: dot.dataset.index
+      });
+    });
+    
+    // Check if Chart.js is loaded
+    console.log("Chart.js loaded:", typeof Chart !== 'undefined');
+    
+    // Force show first chart if none are visible
+    const visibleCharts = Array.from(pieCharts).filter(chart => 
+      window.getComputedStyle(chart).display !== 'none'
+    );
+    
+    if (visibleCharts.length === 0 && pieCharts.length > 0) {
+      console.log("No charts visible, forcing first chart to show");
+      pieCharts[0].style.display = 'block';
+      pieCharts[0].classList.add('active');
+    }
+  }
 
   // ========== INITIALIZATION ==========
   if (navItems.home) {
@@ -3135,5 +3476,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   showScreen('dashboard');
 
-  console.log('SalesBuddy fully loaded with Charts and Complaint Form functionality!');
+  console.log('SalesBuddy fully loaded with FIXED Contribution Breakdown Charts!');
 });
