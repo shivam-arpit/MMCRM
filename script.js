@@ -84,395 +84,316 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // ========== FUNNEL DETAILS FUNCTIONALITY ==========
-  function setupFunnelDetails() {
-    const funnelContainer = document.querySelector('.funnel-container');
-    const funnelDetailsModal = document.getElementById('funnelDetailsModal');
-    const closeFunnelDetailsBtn = document.getElementById('closeFunnelDetails');
-    const funnelTableBody = document.getElementById('funnelTableBody');
-    const funnelTimeRangeSelect = document.getElementById('funnelTimeRange');
-    const exportFunnelCSVBtn = document.getElementById('exportFunnelCSV');
-    const printFunnelReportBtn = document.getElementById('printFunnelReport');
+  // ========== INTERACTIVE FUNNEL DETAILS ==========
+function setupFunnelDetails() {
+  const funnelContainer = document.querySelector('.funnel-container');
+  const funnelDetailsModal = document.getElementById('funnelDetailsModal');
+  const closeFunnelDetailsBtn = document.getElementById('closeFunnelDetails');
+  const funnelTableBody = document.getElementById('funnelTableBody');
+  const funnelTimeRangeSelect = document.getElementById('funnelTimeRange');
 
-    // Mock funnel data
-    const funnelData = {
-      current: {
-        stages: [
-          {
-            name: 'Leads',
-            count: 156,
-            conversion: '100%',
-            avgTime: '0 days',
-            value: '₹0',
-            color: '#3b82f6',
-            opportunities: 24,
-            hotLeads: 12,
-            warmLeads: 58,
-            coldLeads: 86
-          },
-          {
-            name: 'Qualified',
-            count: 78,
-            conversion: '50%',
-            avgTime: '7 days',
-            value: '₹29.25L',
-            color: '#8b5cf6',
-            qualifiedBy: 'Rahul Kumar',
-            avgLeadScore: 75,
-            followUps: 12
-          },
-          {
-            name: 'Proposals',
-            count: 24,
-            conversion: '31%',
-            avgTime: '14 days',
-            value: '₹9L',
-            color: '#f59e0b',
-            proposalsSent: 24,
-            proposalsPending: 8,
-            proposalsReviewed: 16
-          },
-          {
-            name: 'Won',
-            count: 12,
-            conversion: '50%',
-            avgTime: '21 days',
-            value: '₹45L',
-            color: '#22c55e',
-            dealsClosed: 12,
-            avgDealSize: '₹3.75L',
-            totalRevenue: '₹45L'
-          }
-        ],
-        summary: {
-          conversionRate: '7.7%',
-          avgDealSize: '₹3.75L',
-          avgSalesCycle: '42 days',
-          totalValue: '₹45L'
-        }
-      },
-      'last-month': {
-        stages: [
-          { name: 'Leads', count: 142, conversion: '100%', avgTime: '0 days', value: '₹0', color: '#3b82f6' },
-          { name: 'Qualified', count: 71, conversion: '50%', avgTime: '8 days', value: '₹26.6L', color: '#8b5cf6' },
-          { name: 'Proposals', count: 21, conversion: '30%', avgTime: '15 days', value: '₹7.9L', color: '#f59e0b' },
-          { name: 'Won', count: 10, conversion: '48%', avgTime: '22 days', value: '₹35L', color: '#22c55e' }
-        ],
-        summary: {
-          conversionRate: '7.0%',
-          avgDealSize: '₹3.5L',
-          avgSalesCycle: '45 days',
-          totalValue: '₹35L'
-        }
-      },
-      quarter: {
-        stages: [
-          { name: 'Leads', count: 480, conversion: '100%', avgTime: '0 days', value: '₹0', color: '#3b82f6' },
-          { name: 'Qualified', count: 240, conversion: '50%', avgTime: '7 days', value: '₹90L', color: '#8b5cf6' },
-          { name: 'Proposals', count: 72, conversion: '30%', avgTime: '14 days', value: '₹27L', color: '#f59e0b' },
-          { name: 'Won', count: 36, conversion: '50%', avgTime: '21 days', value: '₹135L', color: '#22c55e' }
-        ],
-        summary: {
-          conversionRate: '7.5%',
-          avgDealSize: '₹3.75L',
-          avgSalesCycle: '42 days',
-          totalValue: '₹135L'
-        }
-      }
-    };
+  // Stage data mapping
+  const stageData = {
+    'leads': {
+      title: 'Leads List',
+      icon: '👤',
+      filterFunction: () => Object.keys(mockData.leads).map(id => ({
+        ...mockData.leads[id],
+        id: id,
+        type: 'lead'
+      }))
+    },
+    'qualified': {
+      title: 'Qualified Opportunities',
+      icon: '✅',
+      filterFunction: () => Object.values(mockData.opportunities).filter(opp => 
+        ['discovery', 'proposal', 'negotiation'].includes(opp.stage.toLowerCase())
+      ).map((opp, index) => ({
+        ...opp,
+        id: `opp-${index}`,
+        type: 'opportunity'
+      }))
+    },
+    'proposals': {
+      title: 'Proposals List',
+      icon: '📄',
+      filterFunction: () => Object.keys(mockData.proposals).map(id => ({
+        ...mockData.proposals[id],
+        id: id,
+        type: 'proposal'
+      }))
+    },
+    'won': {
+      title: 'Won Deals',
+      icon: '💰',
+      filterFunction: () => Object.values(mockData.opportunities).filter(opp => 
+        opp.stage.toLowerCase() === 'closed-won'
+      ).map((opp, index) => ({
+        ...opp,
+        id: `won-${index}`,
+        type: 'opportunity'
+      }))
+    }
+  };
 
-    // Function to open funnel details
-    function openFunnelDetails() {
-      if (funnelDetailsModal) {
-        funnelDetailsModal.classList.remove('hidden');
-        populateFunnelTable();
-        updateSummaryMetrics();
+  // Function to open funnel details
+  function openFunnelDetails(stage = null) {
+    if (funnelDetailsModal) {
+      funnelDetailsModal.classList.remove('hidden');
+      
+      if (stage) {
+        showStageItems(stage);
+      } else {
+        showFunnelOverview();
       }
     }
+  }
 
-    // Function to populate the funnel table
-    function populateFunnelTable() {
-      if (!funnelTableBody) return;
-      
-      const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
-      const data = funnelData[timeRange] || funnelData.current;
-      
-      funnelTableBody.innerHTML = '';
-      
-      data.stages.forEach((stage, index) => {
-        const row = document.createElement('tr');
-        
-        // Calculate progress for visual indicator
-        const progressWidth = (stage.count / data.stages[0].count) * 100;
-        
-        row.innerHTML = `
-          <td>
-            <div class="stage-name">${stage.name}</div>
-            <div class="stage-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${progressWidth}%; background: ${stage.color}"></div>
+  // Function to show funnel overview (default)
+  function showFunnelOverview() {
+    if (!funnelTableBody) return;
+    
+    funnelTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="funnel-overview">
+          <h4>📊 Sales Funnel Overview</h4>
+          <p>Click on any stage below to view the actual items in that stage</p>
+          
+          <div class="stage-cards-overview">
+            <div class="stage-card" data-stage="leads">
+              <div class="stage-card-icon">👤</div>
+              <div class="stage-card-content">
+                <h5>Leads</h5>
+                <div class="stage-count">156</div>
+                <p class="stage-desc">Potential customers</p>
               </div>
-              <span class="stage-percentage">${Math.round(progressWidth)}%</span>
+              <button class="view-stage-btn">
+                <i class="fas fa-eye"></i> View All
+              </button>
             </div>
-          </td>
-          <td>
-            <div class="stage-count">${stage.count}</div>
-            ${index > 0 ? `<div class="stage-change">From ${data.stages[index-1].count}</div>` : ''}
-          </td>
-          <td>
-            <div class="conversion-rate">${stage.conversion}</div>
-            <div class="conversion-trend">
-              ${index > 0 ? `of ${data.stages[index-1].name}` : 'Initial stage'}
+            
+            <div class="stage-card" data-stage="qualified">
+              <div class="stage-card-icon">✅</div>
+              <div class="stage-card-content">
+                <h5>Qualified</h5>
+                <div class="stage-count">78</div>
+                <p class="stage-desc">Evaluated opportunities</p>
+              </div>
+              <button class="view-stage-btn">
+                <i class="fas fa-eye"></i> View All
+              </button>
             </div>
-          </td>
-          <td>
-            <div class="avg-time">${stage.avgTime}</div>
-            <div class="time-trend">${index === 0 ? 'N/A' : 'Avg. duration'}</div>
-          </td>
-          <td>
-            <div class="stage-value">${stage.value}</div>
-            ${stage.value !== '₹0' ? `<div class="value-per-deal">Avg: ₹${(parseFloat(stage.value.replace('₹', '').replace('L', '')) / stage.count).toFixed(2)}L</div>` : ''}
-          </td>
-          <td>
-            <button class="action-btn view-stage-btn" data-stage="${stage.name.toLowerCase()}">
-              <i class="fas fa-eye"></i> View
-            </button>
-          </td>
-        `;
-        
-        funnelTableBody.appendChild(row);
-      });
-      
-      // Add event listeners to view stage buttons
-      document.querySelectorAll('.view-stage-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const stage = this.getAttribute('data-stage');
-          viewStageDetails(stage);
-        });
-      });
-    }
-
-    // Function to update summary metrics
-    function updateSummaryMetrics() {
-      const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
-      const data = funnelData[timeRange] || funnelData.current;
-      
-      // Update summary cards
-      const summaryCards = document.querySelectorAll('.summary-card');
-      if (summaryCards.length >= 3) {
-        const conversionRate = summaryCards[0].querySelector('.summary-value');
-        const avgDealSize = summaryCards[1].querySelector('.summary-value');
-        const avgSalesCycle = summaryCards[2].querySelector('.summary-value');
-        
-        if (conversionRate) conversionRate.textContent = data.summary.conversionRate;
-        if (avgDealSize) avgDealSize.textContent = data.summary.avgDealSize;
-        if (avgSalesCycle) avgSalesCycle.textContent = data.summary.avgSalesCycle;
-      }
-    }
-
-    // Function to view stage details
-    function viewStageDetails(stageName) {
-      const stageData = {
-        leads: {
-          title: 'Leads Details',
-          icon: '👤',
-          data: [
-            { label: 'Total Leads', value: '156', change: '+14 from last month', icon: '📊' },
-            { label: 'Hot Leads', value: '12', change: '+2 from last month', icon: '🔥' },
-            { label: 'Warm Leads', value: '58', change: '+8 from last month', icon: '🌡️' },
-            { label: 'Cold Leads', value: '86', change: '+4 from last month', icon: '❄️' },
-            { label: 'New This Week', value: '24', change: 'Weekly average', icon: '📅' },
-            { label: 'Conversion Rate', value: '7.7%', change: '+0.7% from last month', icon: '📈' }
-          ],
-          description: 'Leads are potential customers who have shown interest in your products or services.'
-        },
-        qualified: {
-          title: 'Qualified Leads Details',
-          icon: '✅',
-          data: [
-            { label: 'Total Qualified', value: '78', change: '+7 from last month', icon: '📊' },
-            { label: 'Avg. Qualification Time', value: '7 days', change: '-1 day improvement', icon: '⏱️' },
-            { label: 'Qualified by Top Sales', value: 'Rahul Kumar', change: '12 leads qualified', icon: '👑' },
-            { label: 'Avg. Lead Score', value: '75/100', change: '+5 points improvement', icon: '🎯' },
-            { label: 'Follow-ups Required', value: '12', change: 'Pending follow-ups', icon: '📞' },
-            { label: 'Disqualified Leads', value: '6', change: '-2 from last month', icon: '❌' }
-          ],
-          description: 'Qualified leads have been evaluated and meet the criteria for potential customers.'
-        },
-        proposals: {
-          title: 'Proposals Details',
-          icon: '📄',
-          data: [
-            { label: 'Proposals Sent', value: '24', change: '+3 from last month', icon: '📤' },
-            { label: 'Proposals Pending', value: '8', change: 'Awaiting response', icon: '⏳' },
-            { label: 'Proposals Reviewed', value: '16', change: '+2 from last month', icon: '👁️' },
-            { label: 'Avg. Response Time', value: '3 days', change: '-0.5 days improvement', icon: '⏰' },
-            { label: 'Avg. Proposal Value', value: '₹3.75L', change: '+₹0.25L from last month', icon: '💰' },
-            { label: 'Proposal Success Rate', value: '50%', change: '+5% from last month', icon: '📈' }
-          ],
-          description: 'Proposals are formal offers sent to qualified leads with pricing and terms.'
-        },
-        won: {
-          title: 'Won Deals Details',
-          icon: '💰',
-          data: [
-            { label: 'Deals Closed', value: '12', change: '+2 from last month', icon: '✅' },
-            { label: 'Total Revenue', value: '₹45L', change: '+₹10L from last month', icon: '📊' },
-            { label: 'Avg. Deal Size', value: '₹3.75L', change: '+₹0.25L from last month', icon: '📦' },
-            { label: 'Avg. Sales Cycle', value: '42 days', change: '-3 days improvement', icon: '🔄' },
-            { label: 'Top Performer', value: 'Priya Sharma', change: '3 deals won', icon: '👑' },
-            { label: 'Biggest Deal', value: '₹12.5L', change: 'Enterprise Software License', icon: '🏆' }
-          ],
-          description: 'Won deals represent successful conversions that have generated revenue.'
-        }
-      };
-
-      const stage = stageData[stageName] || stageData.leads;
-      
-      // Create and show modal with stage details
-      const stageModal = document.createElement('div');
-      stageModal.className = 'modal hidden';
-      setTimeout(() => {
-        stageModal.classList.remove('hidden');
-      }, 10);
-      
-      stageModal.innerHTML = `
-        <div class="modal-content" style="max-width: 600px;">
-          <div class="modal-header">
-            <h3><span style="margin-right: 10px;">${stage.icon}</span> ${stage.title}</h3>
-            <button class="close-modal close-stage-modal">×</button>
-          </div>
-          <div class="modal-body">
-            <p class="stage-description">${stage.description}</p>
-            <div class="stage-details-grid">
-              ${stage.data.map(item => `
-                <div class="detail-item">
-                  <div class="detail-icon">${item.icon}</div>
-                  <div class="detail-content">
-                    <div class="detail-label">${item.label}</div>
-                    <div class="detail-value">${item.value}</div>
-                    <div class="detail-change">${item.change}</div>
-                  </div>
-                </div>
-              `).join('')}
+            
+            <div class="stage-card" data-stage="proposals">
+              <div class="stage-card-icon">📄</div>
+              <div class="stage-card-content">
+                <h5>Proposals</h5>
+                <div class="stage-count">24</div>
+                <p class="stage-desc">Sent proposals</p>
+              </div>
+              <button class="view-stage-btn">
+                <i class="fas fa-eye"></i> View All
+              </button>
             </div>
-            <div class="stage-actions">
-              <button class="btn btn-secondary close-stage-modal">Close</button>
-              <button class="btn btn-primary" onclick="exportStageData('${stageName}')">
-                <i class="fas fa-download"></i> Export Data
+            
+            <div class="stage-card" data-stage="won">
+              <div class="stage-card-icon">💰</div>
+              <div class="stage-card-content">
+                <h5>Won Deals</h5>
+                <div class="stage-count">12</div>
+                <p class="stage-desc">Closed deals</p>
+              </div>
+              <button class="view-stage-btn">
+                <i class="fas fa-eye"></i> View All
               </button>
             </div>
           </div>
-        </div>
-      `;
-      
-      document.body.appendChild(stageModal);
-      
-      // Close functionality
-      stageModal.querySelectorAll('.close-stage-modal').forEach(btn => {
-        btn.addEventListener('click', () => {
-          stageModal.classList.add('hidden');
-          setTimeout(() => {
-            if (stageModal.parentNode) {
-              stageModal.parentNode.removeChild(stageModal);
-            }
-          }, 300);
-        });
-      });
-      
-      // Close on background click
-      stageModal.addEventListener('click', (e) => {
-        if (e.target === stageModal) {
-          stageModal.classList.add('hidden');
-          setTimeout(() => {
-            if (stageModal.parentNode) {
-              stageModal.parentNode.removeChild(stageModal);
-            }
-          }, 300);
+        </td>
+      </tr>
+    `;
+    
+    // Add event listeners to stage cards
+    document.querySelectorAll('.stage-card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        if (!e.target.closest('.view-stage-btn')) {
+          const stage = this.getAttribute('data-stage');
+          showStageItems(stage);
         }
       });
+    });
+    
+    document.querySelectorAll('.view-stage-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const stage = this.closest('.stage-card').getAttribute('data-stage');
+        showStageItems(stage);
+      });
+    });
+  }
+
+  // Function to show items for a specific stage
+  function showStageItems(stageName) {
+    if (!funnelTableBody) return;
+    
+    const stage = stageData[stageName] || stageData.leads;
+    const items = stage.filterFunction();
+    
+    funnelTableBody.innerHTML = `
+      <tr>
+        <td colspan="6">
+          <div class="stage-header">
+            <button class="back-to-overview" id="backToOverview">
+              <i class="fas fa-arrow-left"></i> Back to Funnel
+            </button>
+            <h4><span class="stage-icon">${stage.icon}</span> ${stage.title}</h4>
+            <div class="stage-summary">
+              <span class="item-count">${items.length} items</span>
+            </div>
+          </div>
+          
+          <div class="stage-items-list">
+            ${items.length > 0 ? items.map(item => `
+              <div class="stage-item" data-id="${item.id}" data-type="${item.type}">
+                <div class="item-icon">
+                  <div class="icon-box ${item.type === 'lead' ? 'blue' : item.type === 'opportunity' ? 'green' : 'purple'}">
+                    ${item.type === 'lead' ? '👤' : item.type === 'proposal' ? '📄' : '💰'}
+                  </div>
+                </div>
+                <div class="item-info">
+                  <div class="item-header">
+                    <h5>${item.name || item.title || 'Untitled'}</h5>
+                    ${item.status ? `<span class="item-status ${item.status.toLowerCase()}">${item.status}</span>` : ''}
+                    ${item.stage ? `<span class="item-stage ${item.stage.toLowerCase().replace(' ', '-')}">${item.stage}</span>` : ''}
+                  </div>
+                  <p class="item-desc">
+                    ${item.company || item.description || 'No description'}
+                  </p>
+                  <div class="item-meta">
+                    ${item.assignedTo ? `<span><i class="fas fa-user"></i> ${item.assignedTo}</span>` : ''}
+                    ${item.value ? `<span><i class="fas fa-rupee-sign"></i> ${item.value}</span>` : ''}
+                    ${item.lastContact ? `<span><i class="fas fa-calendar"></i> ${item.lastContact}</span>` : ''}
+                  </div>
+                </div>
+                <button class="view-item-btn" data-id="${item.id}" data-type="${item.type}">
+                  <i class="fas fa-eye"></i> View
+                </button>
+              </div>
+            `).join('') : `
+              <div class="empty-stage">
+                <div class="empty-icon">📭</div>
+                <h5>No items found</h5>
+                <p>There are no items in this stage yet.</p>
+              </div>
+            `}
+          </div>
+        </td>
+      </tr>
+    `;
+    
+    // Add event listener for back button
+    const backBtn = document.getElementById('backToOverview');
+    if (backBtn) {
+      backBtn.addEventListener('click', showFunnelOverview);
     }
-
-    // Function to export stage data
-    window.exportStageData = function(stageName) {
-      const stageData = {
-        leads: 'Leads,156,12,58,86,24,7.7%',
-        qualified: 'Qualified Leads,78,7 days,Rahul Kumar,75/100,12,6',
-        proposals: 'Proposals,24,8,16,3 days,₹3.75L,50%',
-        won: 'Won Deals,12,₹45L,₹3.75L,42 days,Priya Sharma,₹12.5L'
-      };
-      
-      const data = stageData[stageName] || stageData.leads;
-      const csvContent = 'data:text/csv;charset=utf-8,' + data;
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement('a');
-      link.setAttribute('href', encodedUri);
-      link.setAttribute('download', `${stageName}_data.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      showToast(`${stageName} data exported successfully!`, 'success');
-    };
-
-    // Event Listeners
-    if (funnelContainer) {
-      funnelContainer.addEventListener('click', (e) => {
-        if (!e.target.closest('.funnel-nav')) {
-          openFunnelDetails();
+    
+    // Add event listeners for view item buttons
+    document.querySelectorAll('.view-item-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-id');
+        const itemType = this.getAttribute('data-type');
+        viewItemDetails(itemId, itemType);
+      });
+    });
+    
+    // Add event listeners for entire item row
+    document.querySelectorAll('.stage-item').forEach(item => {
+      item.addEventListener('click', function(e) {
+        if (!e.target.closest('.view-item-btn')) {
+          const itemId = this.getAttribute('data-id');
+          const itemType = this.getAttribute('data-type');
+          viewItemDetails(itemId, itemType);
         }
       });
-    }
+    });
+  }
 
-    if (closeFunnelDetailsBtn && funnelDetailsModal) {
-      closeFunnelDetailsBtn.addEventListener('click', () => {
+  // Function to view individual item details
+  function viewItemDetails(itemId, itemType) {
+    let detailScreen = '';
+    let itemData = null;
+    
+    switch(itemType) {
+      case 'lead':
+        detailScreen = 'leadDetail';
+        itemData = mockData.leads[itemId];
+        if (itemData) {
+          loadLeadDetail(itemId);
+        }
+        break;
+      case 'opportunity':
+        detailScreen = 'opportunityDetail';
+        // Extract numeric ID if needed
+        const oppId = itemId.replace('opp-', '').replace('won-', '');
+        itemData = mockData.opportunities[oppId] || mockData.opportunities['1'];
+        if (itemData) {
+          loadOpportunityDetail(oppId);
+        }
+        break;
+      case 'proposal':
+        detailScreen = 'proposalDetail';
+        itemData = mockData.proposals[itemId];
+        if (itemData) {
+          loadProposalDetail(itemId);
+        }
+        break;
+    }
+    
+    if (detailScreen && itemData) {
+      // Close funnel modal
+      if (funnelDetailsModal) {
         funnelDetailsModal.classList.add('hidden');
-      });
-    }
-
-    if (funnelTimeRangeSelect) {
-      funnelTimeRangeSelect.addEventListener('change', () => {
-        populateFunnelTable();
-        updateSummaryMetrics();
-      });
-    }
-
-    if (exportFunnelCSVBtn) {
-      exportFunnelCSVBtn.addEventListener('click', () => {
-        const timeRange = funnelTimeRangeSelect ? funnelTimeRangeSelect.value : 'current';
-        const data = funnelData[timeRange] || funnelData.current;
-        
-        let csvContent = 'Stage,Count,Conversion Rate,Avg Time in Stage,Value\n';
-        data.stages.forEach(stage => {
-          csvContent += `${stage.name},${stage.count},${stage.conversion},${stage.avgTime},${stage.value}\n`;
-        });
-        
-        const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `funnel_report_${timeRange}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        showToast('Funnel report exported as CSV!', 'success');
-      });
-    }
-
-    if (printFunnelReportBtn) {
-      printFunnelReportBtn.addEventListener('click', () => {
-        window.print();
-      });
-    }
-
-    // Close modal on outside click
-    if (funnelDetailsModal) {
-      funnelDetailsModal.addEventListener('click', (e) => {
-        if (e.target === funnelDetailsModal) {
-          funnelDetailsModal.classList.add('hidden');
-        }
-      });
+      }
+      
+      // Navigate to detail screen
+      showScreen(detailScreen);
     }
   }
+
+  // Event Listeners
+  if (funnelContainer) {
+    funnelContainer.addEventListener('click', (e) => {
+      if (!e.target.closest('.funnel-nav')) {
+        openFunnelDetails();
+      }
+    });
+  }
+
+  if (closeFunnelDetailsBtn && funnelDetailsModal) {
+    closeFunnelDetailsBtn.addEventListener('click', () => {
+      funnelDetailsModal.classList.add('hidden');
+    });
+  }
+
+  // Close modal on outside click
+  if (funnelDetailsModal) {
+    funnelDetailsModal.addEventListener('click', (e) => {
+      if (e.target === funnelDetailsModal) {
+        funnelDetailsModal.classList.add('hidden');
+      }
+    });
+  }
+
+  // Also make funnel stages clickable directly
+  document.querySelectorAll('.funnel-stage').forEach((stage, index) => {
+    const stageNames = ['leads', 'qualified', 'proposals', 'won'];
+    if (index < stageNames.length) {
+      stage.style.cursor = 'pointer';
+      stage.addEventListener('click', () => {
+        openFunnelDetails(stageNames[index]);
+      });
+    }
+  });
+}
 
   // ========== VISIT FORM - AUTO-GENERATE DATE/TIME ==========
   function autoGenerateVisitDateTime() {
