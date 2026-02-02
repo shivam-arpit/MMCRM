@@ -7756,3 +7756,293 @@ canvas {
   color: #1e293b;
   font-weight: 600;
 }
+/* Funnel Modal Styles */
+.funnel-details-modal .modal-content {
+  max-width: 800px;
+  height: 80vh;
+}
+
+.funnel-overview {
+  text-align: center;
+  padding: 20px;
+}
+
+.funnel-overview h4 {
+  margin-bottom: 10px;
+  color: #1e293b;
+}
+
+.funnel-overview p {
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+.stage-cards-overview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.stage-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.stage-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.stage-card-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.stage-card-content h5 {
+  margin: 0 0 5px 0;
+  color: #1e293b;
+}
+
+.stage-count {
+  font-size: 24px;
+  font-weight: bold;
+  color: #3b82f6;
+  margin: 5px 0;
+}
+
+.stage-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin: 5px 0 10px 0;
+}
+
+.view-stage-btn {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.view-stage-btn:hover {
+  background: #e2e8f0;
+}
+
+/* Stage Items List */
+.stage-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.back-to-overview {
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.back-to-overview:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.stage-header h4 {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stage-icon {
+  font-size: 20px;
+}
+
+.stage-summary {
+  background: #f1f5f9;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.stage-items-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background: white;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.stage-item:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.item-icon .icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.item-header h5 {
+  margin: 0;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.item-status, .item-stage {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.item-status.hot {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.item-status.warm {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.item-status.new {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.item-stage.discovery,
+.item-stage.proposal,
+.item-stage.negotiation,
+.item-stage.closed-won {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.item-desc {
+  margin: 0 0 10px 0;
+  color: #64748b;
+  font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.item-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.view-item-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.view-item-btn:hover {
+  background: #2563eb;
+}
+
+.empty-stage {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.empty-stage h5 {
+  margin: 0 0 10px 0;
+  color: #64748b;
+}
+
+/* Make funnel stages clickable */
+.funnel-stage {
+  cursor: pointer !important;
+  transition: background-color 0.2s;
+}
+
+.funnel-stage:hover {
+  background-color: #f8fafc;
+}
+
+.funnel-stage .stage-name,
+.funnel-stage .stage-count {
+  font-weight: 600;
+}
